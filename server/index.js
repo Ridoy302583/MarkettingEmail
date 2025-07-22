@@ -1,6 +1,6 @@
-const express = require('express');
-const cors = require('cors');
-const nodemailer = require('nodemailer');
+import express from 'express';
+import cors from 'cors';
+import nodemailer from 'nodemailer';
 
 const app = express();
 const PORT = 3001;
@@ -21,7 +21,7 @@ const AWS_SES_CONFIG = {
 };
 
 // Create transporter
-const transporter = nodemailer.createTransporter(AWS_SES_CONFIG);
+const transporter = nodemailer.createTransport(AWS_SES_CONFIG);
 
 // Test connection endpoint
 app.get('/api/test-connection', async (req, res) => {
