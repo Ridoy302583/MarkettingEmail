@@ -20,6 +20,15 @@ export interface SendCampaignRequest {
   from?: string;
 }
 
+export interface BulkCampaignRequest {
+  jobId: string;
+  contacts: EmailContact[];
+  subject: string;
+  html: string;
+  from?: string;
+  batchSize?: number;
+  delayBetweenBatches?: number;
+}
 export const emailService = {
   async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
@@ -67,6 +76,49 @@ export const emailService = {
       return {
         success: false,
         message: 'Failed to send campaign'
+      };
+    }
+  },
+
+  async sendBulkCampaign(request: BulkCampaignRequest): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/send-bulk-campaign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+      
+      return await response.json();
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to send bulk campaign'
+      };
+    }
+  },
+
+  async getJobStatus(jobId: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/job-status/${jobId}`);
+      return await response.json();
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to get job status'
+      };
+    }
+  },
+
+  async getAllJobs(): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/jobs`);
+      return await response.json();
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to get jobs'
       };
     }
   }

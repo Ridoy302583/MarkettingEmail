@@ -8,10 +8,11 @@ import {
   Settings, 
   Zap,
   LogOut,
-  AlertTriangle
+  AlertTriangle,
+  Activity
 } from 'lucide-react';
 
-type ActiveSection = 'dashboard' | 'campaigns' | 'contacts' | 'templates' | 'analytics' | 'settings';
+type ActiveSection = 'dashboard' | 'campaigns' | 'contacts' | 'templates' | 'analytics' | 'settings' | 'monitor';
 
 interface SidebarProps {
   activeSection: ActiveSection;
@@ -29,6 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'templates', label: 'Templates', icon: FileText },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+    { id: 'monitor', label: 'Email Monitor', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

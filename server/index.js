@@ -1,9 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
 
 const app = express();
 const PORT = 3001;
+const server = createServer(app);
+const wss = new WebSocketServer({ server });
 
 // Middleware
 app.use(cors());
@@ -22,7 +26,244 @@ const AWS_SES_CONFIG = {
 
 // Create transporter
 const transporter = nodemailer.createTransport(AWS_SES_CONFIG);
+// WebSocket connection handling
+const activeConnections = new Set();
+const emailJobs = new Map();
 
+wss.on('connection', (ws) => {
+  console.log('Client connected to WebSocket');
+  activeConnections.add(ws);
+  
+  ws.on('close', () => {
+    console.log('Client disconnected from WebSocket');
+    activeConnections.delete(ws);
+  });
+  
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+    activeConnections.delete(ws);
+  });
+});
+
+// Broadcast to all connected clients
+function broadcast(data) {
+  const message = JSON.stringify(data);
+  activeConnections.forEach(ws => {
+    if (ws.readyState === ws.OPEN) {
+      ws.send(message);
+    }
+  });
+}
+
+// Bulk email sending with real-time monitoring
+app.post('/api/send-bulk-campaign', async (req, res) => {
+  try {
+    const { jobId, contacts, subject, html, from = 'noreply@websparks.ai', batchSize = 100, delayBetweenBatches = 1000 } = req.body;
+    
+    if (!jobId || !contacts || !Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request: jobId and contacts array are required'
+      });
+    }
+
+    // Initialize job tracking
+    const job = {
+      id: jobId,
+      totalEmails: contacts.length,
+      sent: 0,
+      success: 0,
+      failed: 0,
+      pending: contacts.length,
+      status: 'running',
+      startTime: new Date(),
+      errors: []
+    };
+    
+    emailJobs.set(jobId, job);
+    
+    // Send initial job status
+    broadcast({
+      type: 'job_started',
+      jobId,
+      job
+    });
+
+    // Process emails in batches
+    const processBatch = async (batch, batchIndex) => {
+      const batchPromises = batch.map(async (contact, contactIndex) => {
+        try {
+          const personalizedHtml = html.replace(/{{firstName}}/g, contact.firstName || 'Valued Customer');
+          
+          const mailOptions = {
+            from,
+            to: contact.email,
+            subject,
+            html: personalizedHtml
+          };
+
+          const result = await transporter.sendMail(mailOptions);
+          
+          // Update job stats
+          job.sent++;
+          job.success++;
+          job.pending--;
+          
+          // Broadcast progress update
+          broadcast({
+            type: 'email_sent',
+            jobId,
+            email: contact.email,
+            status: 'success',
+            messageId: result.messageId,
+            timestamp: new Date(),
+            progress: {
+              sent: job.sent,
+              success: job.success,
+              failed: job.failed,
+              pending: job.pending
+            }
+          });
+          
+          return {
+            email: contact.email,
+            success: true,
+            messageId: result.messageId
+          };
+        } catch (error) {
+          // Update job stats
+          job.sent++;
+          job.failed++;
+          job.pending--;
+          job.errors.push({
+            email: contact.email,
+            error: error.message,
+            timestamp: new Date()
+          });
+          
+          // Broadcast error update
+          broadcast({
+            type: 'email_failed',
+            jobId,
+            email: contact.email,
+            status: 'failed',
+            error: error.message,
+            timestamp: new Date(),
+            progress: {
+              sent: job.sent,
+              success: job.success,
+              failed: job.failed,
+              pending: job.pending
+            }
+          });
+          
+          return {
+            email: contact.email,
+            success: false,
+            error: error.message
+          };
+        }
+      });
+      
+      return Promise.all(batchPromises);
+    };
+
+    // Process all batches
+    const results = [];
+    for (let i = 0; i < contacts.length; i += batchSize) {
+      const batch = contacts.slice(i, i + batchSize);
+      const batchIndex = Math.floor(i / batchSize);
+      
+      console.log(`Processing batch ${batchIndex + 1}/${Math.ceil(contacts.length / batchSize)}`);
+      
+      const batchResults = await processBatch(batch, batchIndex);
+      results.push(...batchResults);
+      
+      // Add delay between batches (except for the last batch)
+      if (i + batchSize < contacts.length) {
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+      }
+    }
+
+    // Mark job as completed
+    job.status = 'completed';
+    job.endTime = new Date();
+    emailJobs.set(jobId, job);
+    
+    // Send completion notification
+    broadcast({
+      type: 'job_completed',
+      jobId,
+      job,
+      results: {
+        total: contacts.length,
+        successful: job.success,
+        failed: job.failed
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Bulk campaign completed: ${job.success} successful, ${job.failed} failed`,
+      jobId,
+      results: {
+        total: contacts.length,
+        successful: job.success,
+        failed: job.failed,
+        details: results
+      }
+    });
+  } catch (error) {
+    console.error('Bulk campaign error:', error);
+    
+    // Update job status to failed
+    if (req.body.jobId && emailJobs.has(req.body.jobId)) {
+      const job = emailJobs.get(req.body.jobId);
+      job.status = 'failed';
+      job.endTime = new Date();
+      emailJobs.set(req.body.jobId, job);
+      
+      broadcast({
+        type: 'job_failed',
+        jobId: req.body.jobId,
+        job,
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get job status
+app.get('/api/job-status/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = emailJobs.get(jobId);
+  
+  if (!job) {
+    return res.status(404).json({
+      success: false,
+      message: 'Job not found'
+    });
+  }
+  
+  res.json({
+    success: true,
+    job
+  });
+});
+
+// Get all jobs
+app.get('/api/jobs', (req, res) => {
+  const jobs = Array.from(emailJobs.values());
+  res.json({
+    success: true,
+    jobs
+  });
+});
 // Test connection endpoint
 app.get('/api/test-connection', async (req, res) => {
   try {
@@ -112,6 +353,7 @@ app.post('/api/send-campaign', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Email server running on port ${PORT}`);
+  console.log(`WebSocket server running on port ${PORT}`);
 });
