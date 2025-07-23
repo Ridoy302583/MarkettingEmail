@@ -1,14 +1,4 @@
 import React from 'react';
-import { 
-  Mail, 
-  Users, 
-  TrendingUp, 
-  Clock, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  Eye,
-  MousePointer
-} from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const stats = [
@@ -17,7 +7,7 @@ const Dashboard: React.FC = () => {
       value: '24',
       change: '+12%',
       trend: 'up',
-      icon: Mail,
+      icon: 'i-hugeicons:mail-01',
       color: 'blue'
     },
     {
@@ -25,7 +15,7 @@ const Dashboard: React.FC = () => {
       value: '8,549',
       change: '+18%',
       trend: 'up',
-      icon: Users,
+      icon: 'i-hugeicons:user-group',
       color: 'green'
     },
     {
@@ -33,7 +23,7 @@ const Dashboard: React.FC = () => {
       value: '24.8%',
       change: '-2.4%',
       trend: 'down',
-      icon: Eye,
+      icon: 'i-hugeicons:view',
       color: 'purple'
     },
     {
@@ -41,7 +31,7 @@ const Dashboard: React.FC = () => {
       value: '3.2%',
       change: '+0.8%',
       trend: 'up',
-      icon: MousePointer,
+      icon: 'i-hugeicons:cursor-02',
       color: 'orange'
     }
   ];
@@ -64,19 +54,18 @@ const Dashboard: React.FC = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat) => {
-            const Icon = stat.icon;
-            const TrendIcon = stat.trend === 'up' ? ArrowUpRight : ArrowDownRight;
+            const TrendIcon = stat.trend === 'up' ? 'i-hugeicons:arrow-up-right-01' : 'i-hugeicons:arrow-down-right-01';
             
             return (
               <div key={stat.label} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-3 rounded-lg bg-${stat.color}-50`}>
-                    <Icon className={`w-6 h-6 text-${stat.color}-600`} />
+                    <div className={`${stat.icon} w-6 h-6 text-${stat.color}-600`} />
                   </div>
                   <div className={`flex items-center text-sm ${
                     stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    <TrendIcon className="w-4 h-4 mr-1" />
+                    <div className={`${TrendIcon} w-4 h-4 mr-1`} />
                     {stat.change}
                   </div>
                 </div>

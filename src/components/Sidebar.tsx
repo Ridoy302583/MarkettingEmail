@@ -1,16 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  BarChart3, 
-  Mail, 
-  Users, 
-  FileText, 
-  TrendingUp, 
-  Settings, 
-  Zap,
-  LogOut,
-  AlertTriangle,
-  Activity
-} from 'lucide-react';
 
 type ActiveSection = 'dashboard' | 'campaigns' | 'contacts' | 'templates' | 'analytics' | 'settings' | 'monitor';
 
@@ -25,13 +13,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'campaigns', label: 'Campaigns', icon: Mail },
-    { id: 'contacts', label: 'Contacts', icon: Users },
-    { id: 'templates', label: 'Templates', icon: FileText },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'monitor', label: 'Email Monitor', icon: Activity },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'dashboard', label: 'Dashboard', icon: 'i-hugeicons:analytics-01' },
+    { id: 'campaigns', label: 'Campaigns', icon: 'i-hugeicons:mail-01' },
+    { id: 'contacts', label: 'Contacts', icon: 'i-hugeicons:user-group' },
+    { id: 'templates', label: 'Templates', icon: 'i-hugeicons:file-02' },
+    { id: 'analytics', label: 'Analytics', icon: 'i-hugeicons:analytics-02' },
+    { id: 'monitor', label: 'Email Monitor', icon: 'i-hugeicons:activity-02' },
+    { id: 'settings', label: 'Settings', icon: 'i-hugeicons:settings-02' },
   ];
 
   const handleLogoutClick = () => {
@@ -61,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
         <div className="p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-600 rounded-lg">
-              <Zap className="w-6 h-6 text-white" />
+              <div className="i-hugeicons:lightning-01 w-6 h-6 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">EmailSpark</h1>
@@ -74,7 +62,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
         <nav className="flex-1 overflow-y-auto">
           <div className="py-4">
             {menuItems.map((item) => {
-              const Icon = item.icon;
               const isActive = activeSection === item.id;
               
               return (
@@ -87,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <div className={`${item.icon} w-5 h-5 mr-3 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                   {item.label}
                 </button>
               );
@@ -102,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
             disabled={isLoggingOut}
             className="w-full flex items-center px-3 py-2 text-gray-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <LogOut className="w-5 h-5 mr-3 text-gray-400 hover:text-red-600" />
+            <div className="i-hugeicons:logout-01 w-5 h-5 mr-3 text-gray-400 hover:text-red-600" />
             {isLoggingOut ? 'Signing out...' : 'Sign Out'}
           </button>
         </div>
@@ -114,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center mb-4">
               <div className="p-3 bg-red-100 rounded-full mr-3">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div className="i-hugeicons:alert-triangle w-6 h-6 text-red-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Sign Out</h3>

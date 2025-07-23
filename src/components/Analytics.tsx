@@ -1,14 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Mail, 
-  Eye, 
-  MousePointer, 
-  UserMinus,
-  Calendar,
-  Filter
-} from 'lucide-react';
 
 const Analytics: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('30');
@@ -19,7 +9,7 @@ const Analytics: React.FC = () => {
       value: '24,567',
       change: '+12.3%',
       trend: 'up',
-      icon: Mail,
+      icon: "i-hugeicons:mail-01",
       color: 'blue'
     },
     {
@@ -27,7 +17,7 @@ const Analytics: React.FC = () => {
       value: '24.8%',
       change: '+2.1%',
       trend: 'up',
-      icon: Eye,
+      icon: "i-hugeicons:mail-01",
       color: 'green'
     },
     {
@@ -35,7 +25,7 @@ const Analytics: React.FC = () => {
       value: '3.2%',
       change: '-0.5%',
       trend: 'down',
-      icon: MousePointer,
+      icon: "i-hugeicons:mail-01",
       color: 'purple'
     },
     {
@@ -43,7 +33,7 @@ const Analytics: React.FC = () => {
       value: '0.8%',
       change: '-0.2%',
       trend: 'up',
-      icon: UserMinus,
+      icon: "i-hugeicons:mail-01",
       color: 'orange'
     }
   ];
@@ -87,7 +77,7 @@ const Analytics: React.FC = () => {
               <option value="365">Last year</option>
             </select>
             <button className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              <Filter className="w-4 h-4 mr-2" />
+              <div className="i-hugeicons:mail-01 w-4 h-4 mr-2" />
               Filter
             </button>
           </div>
@@ -97,18 +87,18 @@ const Analytics: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {overallStats.map((stat) => {
             const Icon = stat.icon;
-            const TrendIcon = stat.trend === 'up' ? TrendingUp : TrendingDown;
+            const TrendIcon = stat.trend === 'up' ? "i-hugeicons:mail-01" : 'i-hugeicons:mail-01';
             
             return (
               <div key={stat.label} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-3 rounded-lg bg-${stat.color}-50`}>
-                    <Icon className={`w-6 h-6 text-${stat.color}-600`} />
+                    <div className={`${Icon} w-6 h-6 text-${stat.color}-600`} />
                   </div>
                   <div className={`flex items-center text-sm ${
                     stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    <TrendIcon className="w-4 h-4 mr-1" />
+                    <div className={`${TrendIcon} w-4 h-4 mr-1`} />
                     {stat.change}
                   </div>
                 </div>
@@ -128,7 +118,7 @@ const Analytics: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Performance Over Time</h3>
             <div className="h-64 flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
               <div className="text-center">
-                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <div className="i-hugeicons:mail-01 w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h4 className="text-lg font-medium text-gray-900 mb-2">Chart Placeholder</h4>
                 <p className="text-gray-500">Line chart showing email performance metrics over time would be displayed here</p>
               </div>
@@ -140,7 +130,7 @@ const Analytics: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Campaign Performance Comparison</h3>
             <div className="h-64 flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
               <div className="text-center">
-                <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <div className="i-hugeicons:mail-01 w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h4 className="text-lg font-medium text-gray-900 mb-2">Chart Placeholder</h4>
                 <p className="text-gray-500">Bar chart comparing campaign performance metrics would be displayed here</p>
               </div>

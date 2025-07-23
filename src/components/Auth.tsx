@@ -1,4 +1,4 @@
-import { Zap, Loader2 } from 'lucide-react';
+
 import React, { useState } from 'react';
 
 const Auth = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
@@ -47,7 +47,7 @@ const Auth = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         {/* Logo */}
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-blue-600 rounded-lg">
-            <Zap className="w-6 h-6 text-white" />
+            <div className="i-hugeicons:mail-01 w-4 h-4 mr-2" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">EmailSpark</h1>
@@ -107,7 +107,7 @@ const Auth = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <div className="i-hugeicons:mail-01 w-4 h-4 mr-2" />
                 Signing in...
               </>
             ) : (

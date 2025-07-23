@@ -1,21 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Upload, 
-  Download, 
-  Mail, 
-  MoreHorizontal,
-  UserPlus,
-  Users,
-  Trash2,
-  Edit3,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  AlertCircle
-} from 'lucide-react';
 
 interface ApiContact {
   id: number;
@@ -211,13 +194,13 @@ const Contacts: React.FC = () => {
   const getStatusIcon = (status: Contact['status']) => {
     switch (status) {
       case 'active':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <div className="i-hugeicons:tick-02 w-4 h-4 text-green-600" />;
       case 'inactive':
-        return <XCircle className="w-4 h-4 text-red-600" />;
+        return <div className="i-hugeicons:cancel-circle w-4 h-4 text-red-600" />;
       case 'pending':
-        return <AlertCircle className="w-4 h-4 text-yellow-600" />;
+        return <div className="i-hugeicons:alert-triangle w-4 h-4 text-yellow-600" />;
       default:
-        return <AlertCircle className="w-4 h-4 text-gray-600" />;
+        return <div className="i-hugeicons:alert-triangle w-4 h-4 text-gray-600" />;
     }
   };
 
@@ -281,7 +264,7 @@ const Contacts: React.FC = () => {
         <div className="p-8">
           <div className="flex items-center justify-center h-64">
             <div className="flex items-center space-x-2">
-              <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+              <div className="i-hugeicons:loading-03 w-6 h-6 animate-spin text-blue-600" />
               <span className="text-gray-600">Loading contacts...</span>
             </div>
           </div>
@@ -296,7 +279,7 @@ const Contacts: React.FC = () => {
         <div className="p-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <div className="i-hugeicons:cancel-circle w-12 h-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load contacts</h3>
               <p className="text-gray-600 mb-4">{error}</p>
               <button 
@@ -330,22 +313,22 @@ const Contacts: React.FC = () => {
               className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               disabled={loading}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <div className={`i-hugeicons:loading-03 w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
             <button className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              <Upload className="w-4 h-4 mr-2" />
+              <div className="i-hugeicons:upload-04 w-4 h-4 mr-2" />
               Import
             </button>
             <button className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4 mr-2" />
+              <div className="i-hugeicons:download-01 w-4 h-4 mr-2" />
               Export
             </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <div className="i-hugeicons:add-01 w-4 h-4 mr-2" />
               Add Contact
             </button>
           </div>
@@ -356,7 +339,7 @@ const Contacts: React.FC = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center">
               <div className="p-3 bg-blue-50 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600" />
+                <div className="i-hugeicons:user-group w-6 h-6 text-blue-600" />
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -367,7 +350,7 @@ const Contacts: React.FC = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center">
               <div className="p-3 bg-green-50 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
+                <div className="i-hugeicons:tick-02 w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
@@ -378,7 +361,7 @@ const Contacts: React.FC = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center">
               <div className="p-3 bg-red-50 rounded-lg">
-                <XCircle className="w-6 h-6 text-red-600" />
+                <div className="i-hugeicons:cancel-circle w-6 h-6 text-red-600" />
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.inactive}</p>
@@ -389,7 +372,7 @@ const Contacts: React.FC = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center">
               <div className="p-3 bg-yellow-50 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-yellow-600" />
+                <div className="i-hugeicons:alert-triangle w-6 h-6 text-yellow-600" />
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
@@ -400,7 +383,7 @@ const Contacts: React.FC = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center">
               <div className="p-3 bg-purple-50 rounded-lg">
-                <Mail className="w-6 h-6 text-purple-600" />
+                <div className="i-hugeicons:mail-01 w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
                 <p className="text-2xl font-bold text-gray-900">{stats.verified}</p>
@@ -414,7 +397,7 @@ const Contacts: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <div className="i-hugeicons:search-01 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search contacts..."
@@ -424,7 +407,7 @@ const Contacts: React.FC = () => {
               />
             </div>
             <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <Filter className="w-4 h-4 mr-2" />
+              <div className="i-hugeicons:filter w-4 h-4 mr-2" />
               Filter
             </button>
           </div>
@@ -529,9 +512,9 @@ const Contacts: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         {contact.emailVerified ? (
-                          <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                          <div className="i-hugeicons:tick-02 w-4 h-4 text-green-500 mr-1" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-red-500 mr-1" />
+                          <div className="i-hugeicons:cancel-circle w-4 h-4 text-red-500 mr-1" />
                         )}
                         <span className="text-sm text-gray-900">
                           {contact.emailVerified ? 'Verified' : 'Not Verified'}
@@ -558,13 +541,13 @@ const Contacts: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
-                          <Edit3 className="w-4 h-4" />
+                          <div className="i-hugeicons:edit-02 w-4 h-4" />
                         </button>
                         <button className="p-1 text-gray-400 hover:text-red-600 transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                          <div className="i-hugeicons:delete-02 w-4 h-4" />
                         </button>
                         <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                          <MoreHorizontal className="w-4 h-4" />
+                          <div className="i-hugeicons:more-horizontal w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -585,12 +568,12 @@ const Contacts: React.FC = () => {
             >
               {loadingMore ? (
                 <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  <div className="i-hugeicons:loading-03 w-4 h-4 mr-2 animate-spin" />
                   Loading more contacts...
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4 mr-2" />
+                  <div className="i-hugeicons:add-01 w-4 h-4 mr-2" />
                   Load More Contacts
                 </>
               )}

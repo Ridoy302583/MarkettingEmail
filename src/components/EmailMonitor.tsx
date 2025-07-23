@@ -1,21 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Play, 
-  Pause, 
-  Square, 
-  Mail, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle,
-  Users,
-  Activity,
-  TrendingUp,
-  RefreshCw,
-  Download,
-  Eye,
-  BarChart3
-} from 'lucide-react';
 
 interface EmailJob {
   id: string;
@@ -60,7 +43,7 @@ const EmailMonitor: React.FC = () => {
   const [jobName, setJobName] = useState('');
   const [batchSize, setBatchSize] = useState(100);
   const [delayBetweenBatches, setDelayBetweenBatches] = useState(1000);
-  
+
   const wsRef = useRef<WebSocket | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -69,18 +52,18 @@ const EmailMonitor: React.FC = () => {
     // In a real implementation, this would connect to your WebSocket server
     const simulateWebSocket = () => {
       setIsConnected(true);
-      
+
       // Simulate real-time updates
       const interval = setInterval(() => {
         if (activeJob && activeJob.status === 'running') {
           setActiveJob(prev => {
             if (!prev || prev.status !== 'running') return prev;
-            
+
             const newSent = Math.min(prev.sent + Math.floor(Math.random() * 10) + 1, prev.totalEmails);
             const newSuccess = Math.min(prev.success + Math.floor(Math.random() * 8) + 1, newSent);
             const newFailed = newSent - newSuccess;
             const newPending = prev.totalEmails - newSent;
-            
+
             const updatedJob = {
               ...prev,
               sent: newSent,
@@ -147,7 +130,7 @@ const EmailMonitor: React.FC = () => {
 
     setJobs(prev => [newJob, ...prev]);
     setShowCreateJob(false);
-    
+
     // Reset form
     setJobName('');
     setEmailSubject('');
@@ -162,7 +145,7 @@ const EmailMonitor: React.FC = () => {
       startTime: new Date(),
       estimatedCompletion: new Date(Date.now() + (job.totalEmails / 5) * 1000) // Estimate 5 emails per second
     };
-    
+
     setJobs(prev => prev.map(j => j.id === job.id ? updatedJob : j));
     setActiveJob(updatedJob);
     setRealtimeProgress([]);
@@ -177,8 +160,8 @@ const EmailMonitor: React.FC = () => {
   };
 
   const stopJob = (job: EmailJob) => {
-    const updatedJob = { 
-      ...job, 
+    const updatedJob = {
+      ...job,
       status: 'completed' as const,
       endTime: new Date()
     };
@@ -191,15 +174,15 @@ const EmailMonitor: React.FC = () => {
   const getStatusIcon = (status: EmailJob['status']) => {
     switch (status) {
       case 'running':
-        return <Activity className="w-4 h-4 text-green-500 animate-pulse" />;
+        return <div className="i-hugeicons:activity-02 w-4 h-4 text-green-500 animate-pulse" />;
       case 'paused':
-        return <Pause className="w-4 h-4 text-yellow-500" />;
+        return <div className="i-hugeicons:pause w-4 h-4 text-yellow-500" />;
       case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <div className="i-hugeicons:tick-02 w-4 h-4 text-green-500" />;
       case 'failed':
-        return <XCircle className="w-4 h-4 text-red-500" />;
+        return <div className="i-hugeicons:cancel-circle w-4 h-4 text-red-500" />;
       default:
-        return <Clock className="w-4 h-4 text-gray-400" />;
+        return <div className="i-hugeicons:clock-01 w-4 h-4 text-gray-400" />;
     }
   };
 
@@ -249,19 +232,17 @@ const EmailMonitor: React.FC = () => {
             <p className="text-gray-600 mt-2">Real-time bulk email sending monitoring and analytics</p>
           </div>
           <div className="flex items-center space-x-3">
-            <div className={`flex items-center px-3 py-1 rounded-full text-sm ${
-              isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              <div className={`w-2 h-2 rounded-full mr-2 ${
-                isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`}></div>
+            <div className={`flex items-center px-3 py-1 rounded-full text-sm ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+              <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
               {isConnected ? 'Connected' : 'Disconnected'}
             </div>
             <button
               onClick={() => setShowCreateJob(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Mail className="w-4 h-4 mr-2" />
+              <div className="i-hugeicons:mail-01 w-4 h-4 mr-2" />
               New Email Job
             </button>
           </div>
@@ -278,8 +259,8 @@ const EmailMonitor: React.FC = () => {
                     <span className="ml-2">{activeJob.name}</span>
                   </h2>
                   <p className="text-gray-600 mt-1">
-                    {activeJob.totalEmails.toLocaleString()} total emails • 
-                    {activeJob.emailsPerSecond} emails/sec • 
+                    {activeJob.totalEmails.toLocaleString()} total emails •
+                    {activeJob.emailsPerSecond} emails/sec •
                     Duration: {formatDuration(activeJob.startTime, activeJob.endTime)}
                   </p>
                 </div>
@@ -289,7 +270,7 @@ const EmailMonitor: React.FC = () => {
                       onClick={() => startJob(activeJob)}
                       className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                     >
-                      <Play className="w-4 h-4 mr-1" />
+                      <div className="i-hugeicons:play w-4 h-4 mr-1" />
                       Start
                     </button>
                   )}
@@ -299,14 +280,14 @@ const EmailMonitor: React.FC = () => {
                         onClick={() => pauseJob(activeJob)}
                         className="flex items-center px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
                       >
-                        <Pause className="w-4 h-4 mr-1" />
+                        <div className="i-hugeicons:pause w-4 h-4 mr-1" />
                         Pause
                       </button>
                       <button
                         onClick={() => stopJob(activeJob)}
                         className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                       >
-                        <Square className="w-4 h-4 mr-1" />
+                        <div className="i-hugeicons:stop w-4 h-4 mr-1" />
                         Stop
                       </button>
                     </>
@@ -316,7 +297,7 @@ const EmailMonitor: React.FC = () => {
                       onClick={() => startJob(activeJob)}
                       className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                     >
-                      <Play className="w-4 h-4 mr-1" />
+                      <div className="i-hugeicons:play w-4 h-4 mr-1" />
                       Resume
                     </button>
                   )}
@@ -333,7 +314,7 @@ const EmailMonitor: React.FC = () => {
                       <p className="text-blue-600 text-sm font-medium">Total Sent</p>
                       <p className="text-2xl font-bold text-blue-900">{activeJob.sent.toLocaleString()}</p>
                     </div>
-                    <Mail className="w-8 h-8 text-blue-600" />
+                    <div className="i-hugeicons:mail-01 w-8 h-8 text-blue-600" />
                   </div>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg">
@@ -342,7 +323,7 @@ const EmailMonitor: React.FC = () => {
                       <p className="text-green-600 text-sm font-medium">Successful</p>
                       <p className="text-2xl font-bold text-green-900">{activeJob.success.toLocaleString()}</p>
                     </div>
-                    <CheckCircle className="w-8 h-8 text-green-600" />
+                    <div className="i-hugeicons:tick-02 w-8 h-8 text-green-600" />
                   </div>
                 </div>
                 <div className="bg-red-50 p-4 rounded-lg">
@@ -351,7 +332,7 @@ const EmailMonitor: React.FC = () => {
                       <p className="text-red-600 text-sm font-medium">Failed</p>
                       <p className="text-2xl font-bold text-red-900">{activeJob.failed.toLocaleString()}</p>
                     </div>
-                    <XCircle className="w-8 h-8 text-red-600" />
+                    <div className="i-hugeicons:cancel-circle w-8 h-8 text-red-600" />
                   </div>
                 </div>
                 <div className="bg-yellow-50 p-4 rounded-lg">
@@ -360,7 +341,7 @@ const EmailMonitor: React.FC = () => {
                       <p className="text-yellow-600 text-sm font-medium">Pending</p>
                       <p className="text-2xl font-bold text-yellow-900">{activeJob.pending.toLocaleString()}</p>
                     </div>
-                    <Clock className="w-8 h-8 text-yellow-600" />
+                    <div className="i-hugeicons:clock-01 w-8 h-8 text-yellow-600" />
                   </div>
                 </div>
               </div>
@@ -372,7 +353,7 @@ const EmailMonitor: React.FC = () => {
                   <span className="text-sm text-gray-500">{calculateProgress(activeJob).toFixed(1)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
+                  <div
                     className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${calculateProgress(activeJob)}%` }}
                   ></div>
@@ -383,10 +364,10 @@ const EmailMonitor: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                    <Activity className="w-5 h-5 mr-2" />
+                    <div className="i-hugeicons:activity-02 w-5 h-5 mr-2" />
                     Real-time Progress
                   </h3>
-                  <div 
+                  <div
                     ref={progressRef}
                     className="bg-gray-50 rounded-lg p-4 h-64 overflow-y-auto border"
                   >
@@ -398,9 +379,9 @@ const EmailMonitor: React.FC = () => {
                           <div key={index} className="flex items-center justify-between text-sm">
                             <div className="flex items-center">
                               {progress.status === 'sent' ? (
-                                <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                                <div className="i-hugeicons:tick-02 w-4 h-4 text-green-500 mr-2" />
                               ) : (
-                                <XCircle className="w-4 h-4 text-red-500 mr-2" />
+                                <div className="i-hugeicons:cancel-circle w-4 h-4 text-red-500 mr-2" />
                               )}
                               <span className="font-mono text-xs">{progress.email}</span>
                             </div>
@@ -416,7 +397,7 @@ const EmailMonitor: React.FC = () => {
 
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                    <BarChart3 className="w-5 h-5 mr-2" />
+                    <div className="i-hugeicons:analytics-01 w-5 h-5 mr-2" />
                     Performance Metrics
                   </h3>
                   <div className="bg-gray-50 rounded-lg p-4 h-64">
@@ -434,8 +415,8 @@ const EmailMonitor: React.FC = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Estimated Completion:</span>
                         <span className="font-semibold">
-                          {activeJob.estimatedCompletion ? 
-                            activeJob.estimatedCompletion.toLocaleTimeString() : 
+                          {activeJob.estimatedCompletion ?
+                            activeJob.estimatedCompletion.toLocaleTimeString() :
                             '-'
                           }
                         </span>
@@ -443,8 +424,8 @@ const EmailMonitor: React.FC = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Time Remaining:</span>
                         <span className="font-semibold">
-                          {activeJob.pending > 0 && activeJob.emailsPerSecond > 0 ? 
-                            `${Math.ceil(activeJob.pending / activeJob.emailsPerSecond)}s` : 
+                          {activeJob.pending > 0 && activeJob.emailsPerSecond > 0 ?
+                            `${Math.ceil(activeJob.pending / activeJob.emailsPerSecond)}s` :
                             '-'
                           }
                         </span>
@@ -510,7 +491,7 @@ const EmailMonitor: React.FC = () => {
                           <span>{job.totalEmails}</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
+                          <div
                             className="bg-blue-600 h-2 rounded-full"
                             style={{ width: `${calculateProgress(job)}%` }}
                           ></div>
@@ -533,7 +514,7 @@ const EmailMonitor: React.FC = () => {
                           className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                           title="View Details"
                         >
-                          <Eye className="w-4 h-4" />
+                          <div className="i-hugeicons:view w-4 h-4" />
                         </button>
                         {job.status === 'idle' && (
                           <button
@@ -541,7 +522,7 @@ const EmailMonitor: React.FC = () => {
                             className="p-1 text-gray-400 hover:text-green-600 transition-colors"
                             title="Start Job"
                           >
-                            <Play className="w-4 h-4" />
+                            <div className="i-hugeicons:play w-4 h-4" />
                           </button>
                         )}
                         {job.status === 'running' && (
@@ -550,7 +531,7 @@ const EmailMonitor: React.FC = () => {
                             className="p-1 text-gray-400 hover:text-yellow-600 transition-colors"
                             title="Pause Job"
                           >
-                            <Pause className="w-4 h-4" />
+                            <div className="i-hugeicons:pause w-4 h-4" />
                           </button>
                         )}
                       </div>
@@ -685,7 +666,6 @@ const EmailMonitor: React.FC = () => {
         </div>
       )}
     </div>
-  );
-};
-
+  )
+}
 export default EmailMonitor;

@@ -1,8 +1,19 @@
-/** @type {import('tailwindcss').Config} */
+import plugin from 'tailwindcss/plugin';
+
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: ['./**/*.{html,js,ts,jsx,tsx,vue,svelte}'],
   theme: {
     extend: {},
   },
-  plugins: [],
-};
+  plugins: [
+    // Example: Add custom plugin for icon alignment
+    plugin(function({ addUtilities }) {
+      addUtilities({
+        '.icon-inline': {
+          display: 'inline-block',
+          verticalAlign: 'middle',
+        },
+      });
+    }),
+  ],
+}

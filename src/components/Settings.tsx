@@ -1,16 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  Save, 
-  Key, 
-  Mail, 
-  Server, 
-  Shield, 
-  Bell, 
-  User, 
-  Palette,
-  Database,
-  TestTube
-} from 'lucide-react';
 import { emailService } from '../services/emailService';
 
 const Settings: React.FC = () => {
@@ -19,12 +7,12 @@ const Settings: React.FC = () => {
   const [testing, setTesting] = useState(false);
 
   const tabs = [
-    { id: 'aws', label: 'AWS SES', icon: Server },
-    { id: 'smtp', label: 'SMTP Settings', icon: Mail },
-    { id: 'api', label: 'API Keys', icon: Key },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'account', label: 'Account', icon: User },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'aws', label: 'AWS SES', icon: 'i-hugeicons:server-01' },
+    { id: 'smtp', label: 'SMTP Settings', icon: 'i-hugeicons:mail-01' },
+    { id: 'api', label: 'API Keys', icon: 'i-hugeicons:key-01' },
+    { id: 'notifications', label: 'Notifications', icon: 'i-hugeicons:notification-01' },
+    { id: 'account', label: 'Account', icon: 'i-hugeicons:user' },
+    { id: 'appearance', label: 'Appearance', icon: 'i-hugeicons:paint-brush-02' },
   ];
 
   const handleTestConnection = async () => {
@@ -107,18 +95,18 @@ const Settings: React.FC = () => {
                 disabled={testing}
                 className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                <TestTube className="w-4 h-4 mr-2" />
+                <div className="i-hugeicons:test-tube w-4 h-4 mr-2" />
                 {testing ? 'Testing...' : 'Test Connection'}
               </button>
               {testResult === 'success' && (
                 <div className="flex items-center text-green-600">
-                  <Shield className="w-4 h-4 mr-2" />
+                  <div className="i-hugeicons:shield-01 w-4 h-4 mr-2" />
                   Connection successful!
                 </div>
               )}
               {testResult === 'error' && (
                 <div className="flex items-center text-red-600">
-                  <XCircle className="w-4 h-4 mr-2" />
+                  <div className="i-hugeicons:cancel-circle w-4 h-4 mr-2" />
                   Connection failed!
                 </div>
               )}
@@ -428,7 +416,6 @@ const Settings: React.FC = () => {
           <div className="lg:w-64 flex-shrink-0">
             <nav className="space-y-1">
               {tabs.map((tab) => {
-                const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
@@ -439,7 +426,7 @@ const Settings: React.FC = () => {
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 mr-3 ${
+                    <div className={`${tab.icon} w-5 h-5 mr-3 ${
                       activeTab === tab.id ? 'text-blue-600' : 'text-gray-400'
                     }`} />
                     {tab.label}
@@ -456,7 +443,7 @@ const Settings: React.FC = () => {
               
               <div className="flex justify-end pt-6 mt-6 border-t border-gray-200">
                 <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  <Save className="w-4 h-4 mr-2" />
+                  <div className="i-hugeicons:save-01 w-4 h-4 mr-2" />
                   Save Changes
                 </button>
               </div>
