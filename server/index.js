@@ -58,7 +58,7 @@ function broadcast(data) {
 // Bulk email sending with real-time monitoring
 app.post('/api/send-bulk-campaign', async (req, res) => {
   try {
-    const { jobId, contacts, subject, html, from = 'noreply@websparks.ai', batchSize = 100, delayBetweenBatches = 1000 } = req.body;
+    const { jobId, contacts, subject, html, from = 'noreply@websparks.ai', batchSize = 50, delayBetweenBatches = 500 } = req.body;
     
     if (!jobId || !contacts || !Array.isArray(contacts) || contacts.length === 0) {
       return res.status(400).json({
@@ -66,6 +66,8 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
         message: 'Invalid request: jobId and contacts array are required'
       });
     }
+
+    const totalBatches = Math.ceil(contacts.length / batchSize);
 
     // Initialize job tracking
     const job = {
@@ -77,22 +79,65 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
       pending: contacts.length,
       status: 'running',
       startTime: new Date(),
+      totalBatches,
+      currentBatch: 0,
       errors: []
     };
     
     emailJobs.set(jobId, job);
     
-    // Send initial job status
+    // Send initial job status - MATCH FRONTEND EXPECTATIONS
     broadcast({
       type: 'job_started',
       jobId,
-      job
+      job: {
+        totalEmails: contacts.length,
+        startTime: job.startTime.toISOString(),
+        totalBatches
+      }
     });
 
     // Process emails in batches
     const processBatch = async (batch, batchIndex) => {
-      const batchPromises = batch.map(async (contact, contactIndex) => {
+      // Update current batch
+      job.currentBatch = batchIndex + 1;
+      
+      // Send batch started message
+      broadcast({
+        type: 'batch_started',
+        jobId,
+        batch: {
+          id: `batch_${batchIndex + 1}`,
+          number: batchIndex + 1,
+          emails: batch.map(contact => contact.email)
+        }
+      });
+
+      // Send next batch preview if exists
+      if (batchIndex + 1 < totalBatches) {
+        const nextBatchStart = (batchIndex + 1) * batchSize;
+        const nextBatch = contacts.slice(nextBatchStart, nextBatchStart + batchSize);
+        broadcast({
+          type: 'batch_queued',
+          jobId,
+          batch: {
+            id: `batch_${batchIndex + 2}`,
+            number: batchIndex + 2,
+            emails: nextBatch.map(contact => contact.email)
+          }
+        });
+      }
+
+      const batchPromises = batch.map(async (contact) => {
         try {
+          // Send individual email sending notification
+          broadcast({
+            type: 'email_sending',
+            jobId,
+            email: contact.email,
+            timestamp: new Date().toISOString()
+          });
+
           const personalizedHtml = html.replace(/{{firstName}}/g, contact.firstName || 'Valued Customer');
           
           const mailOptions = {
@@ -109,19 +154,20 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
           job.success++;
           job.pending--;
           
-          // Broadcast progress update
+          // Broadcast success update
           broadcast({
             type: 'email_sent',
             jobId,
             email: contact.email,
-            status: 'success',
+            status: 'sent',
             messageId: result.messageId,
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             progress: {
               sent: job.sent,
               success: job.success,
               failed: job.failed,
-              pending: job.pending
+              pending: job.pending,
+              rate: Math.floor(job.sent / ((new Date() - job.startTime) / 1000)) || 0
             }
           });
           
@@ -148,12 +194,13 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
             email: contact.email,
             status: 'failed',
             error: error.message,
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             progress: {
               sent: job.sent,
               success: job.success,
               failed: job.failed,
-              pending: job.pending
+              pending: job.pending,
+              rate: Math.floor(job.sent / ((new Date() - job.startTime) / 1000)) || 0
             }
           });
           
@@ -174,7 +221,7 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
       const batch = contacts.slice(i, i + batchSize);
       const batchIndex = Math.floor(i / batchSize);
       
-      console.log(`Processing batch ${batchIndex + 1}/${Math.ceil(contacts.length / batchSize)}`);
+      console.log(`Processing batch ${batchIndex + 1}/${totalBatches}`);
       
       const batchResults = await processBatch(batch, batchIndex);
       results.push(...batchResults);
@@ -194,7 +241,6 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
     broadcast({
       type: 'job_completed',
       jobId,
-      job,
       results: {
         total: contacts.length,
         successful: job.success,
@@ -226,7 +272,6 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
       broadcast({
         type: 'job_failed',
         jobId: req.body.jobId,
-        job,
         error: error.message
       });
     }

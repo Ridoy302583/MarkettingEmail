@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, 
   Search, 
@@ -21,7 +21,11 @@ import {
   BarChart3,
   Pause,
   Square,
-  Play
+  Play,
+  Loader,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 import { emailService, EmailContact } from '../services/emailService';
 import { emailTemplates, EmailTemplate } from '../data/emailTemplates';
@@ -50,7 +54,7 @@ interface ApiContact {
   status: string;
   created_at: string;
   last_login?: string;
-  plan_name?: string; // Added plan information
+  plan_name?: string;
 }
 
 interface Contact {
@@ -66,7 +70,23 @@ interface Contact {
   status: 'active' | 'inactive' | 'pending';
   createdAt: string;
   lastLogin?: string;
-  planName?: string; // Added plan information
+  planName?: string;
+}
+
+// Enhanced email tracking interface
+interface EmailStatus {
+  email: string;
+  status: 'pending' | 'sending' | 'sent' | 'failed' | 'queued';
+  timestamp?: Date;
+  error?: string;
+  retryCount?: number;
+  batchId?: string;
+}
+
+interface EmailQueue {
+  currentBatch: EmailStatus[];
+  nextBatch: EmailStatus[];
+  allEmails: Map<string, EmailStatus>;
 }
 
 const Campaigns: React.FC = () => {
@@ -74,10 +94,11 @@ const Campaigns: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
-  const [sendingStatus, setSendingStatus] = useState<'idle' | 'sending' | 'success' | 'error' | 'paused'>('idle');
+  const [sendingStatus, setSendingStatus] = useState<'idle' | 'sending' | 'success' | 'error' | 'paused' | 'completed'>('idle');
   const [sendResult, setSendResult] = useState<any>(null);
+  const currentJobIdRef = useRef<string | null>(null);
   
-  // Real-time monitoring states
+  // Enhanced real-time monitoring states
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [emailProgress, setEmailProgress] = useState({
     total: 0,
@@ -87,8 +108,18 @@ const Campaigns: React.FC = () => {
     pending: 0,
     emailsPerSecond: 0,
     startTime: null as Date | null,
-    estimatedCompletion: null as Date | null
+    estimatedCompletion: null as Date | null,
+    currentBatch: 0,
+    totalBatches: 0
   });
+  
+  // Enhanced email tracking
+  const [emailQueue, setEmailQueue] = useState<EmailQueue>({
+    currentBatch: [],
+    nextBatch: [],
+    allEmails: new Map()
+  });
+  
   const [realtimeLog, setRealtimeLog] = useState<any[]>([]);
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -101,19 +132,19 @@ const Campaigns: React.FC = () => {
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [contactSearchTerm, setContactSearchTerm] = useState('');
   
-  // Filter states - Added plan filter
+  // Filter states
   const [filters, setFilters] = useState({
-    emailVerified: 'all', // 'all', 'verified', 'not_verified'
-    registerType: 'all', // 'all', 'github', 'google', 'general'
-    accountType: 'all', // 'all', 'free', 'premium' (you might need to add this field)
-    lastLogin: 'all', // 'all', '7_days', '30_days', 'this_month', 'last_month'
-    status: 'all', // 'all', 'active', 'inactive', 'pending'
-    planName: 'all' // 'all', 'Free', 'Starter', 'Plus', 'Pro'
+    emailVerified: 'all',
+    registerType: 'all',
+    accountType: 'all',
+    lastLogin: 'all',
+    status: 'all',
+    planName: 'all'
   });
 
   const API_BASE_URL = 'https://api.websparks.ai';
 
-  // Transform function for flat user object (used for general users-all endpoint)
+  // Transform functions (unchanged)
   const transformApiContact = (apiContact: ApiContact): Contact => {
     const fullName = apiContact.full_name || '';
     const nameParts = fullName ? fullName.split(' ') : [];
@@ -137,7 +168,6 @@ const Campaigns: React.FC = () => {
     };
   };
 
-  // New transform function for plan-specific API response
   const transformPlanApiContact = (item: { plan: any; user: any }): Contact => {
     const user = item.user;
     const plan = item.plan;
@@ -164,12 +194,11 @@ const Campaigns: React.FC = () => {
     };
   };
 
-  // Get access token from localStorage
   const getAccessToken = () => {
     return localStorage.getItem('access_token');
   };
 
-  // Fetch contacts from API - Enhanced to support plan filtering with correct transform
+  // Fetch contacts function (unchanged)
   const fetchContacts = async () => {
     try {
       setLoadingContacts(true);
@@ -183,33 +212,26 @@ const Campaigns: React.FC = () => {
       let allContactsData: Contact[] = [];
       
       if (filters.planName !== 'all') {
-  // Fetch contacts by plan name
-  const url = `${API_BASE_URL}/get-user-by-plan-name/?page=1&per_page=3000&name=${filters.planName}&sort_by=id&sort_order=asc`;
-  const response = await fetch(url, {
-    headers: {
-      'accept': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
-    }
-  });
+        const url = `${API_BASE_URL}/get-user-by-plan-name/?page=1&per_page=3000&name=${filters.planName}&sort_by=id&sort_order=asc`;
+        const response = await fetch(url, {
+          headers: {
+            'accept': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
 
-  const data = await response.json();
-
-  // data is an array of { plan, user }
-  const mappedContacts: Contact[] = data.map(transformPlanApiContact);
-
-  // Deduplicate by user id
-  const uniqueContacts: Contact[] = Array.from(
-    new Map(mappedContacts.map(c => [c.id, c])).values()
-  );
-
-  allContactsData = uniqueContacts;
-} else {
-        // Fetch all contacts with pagination
+        const data = await response.json();
+        const mappedContacts: Contact[] = data.map(transformPlanApiContact);
+        const uniqueContacts: Contact[] = Array.from(
+          new Map(mappedContacts.map(c => [c.id, c])).values()
+        );
+        allContactsData = uniqueContacts;
+      } else {
         let currentPage = 1;
         let hasMore = true;
         
@@ -247,7 +269,7 @@ const Campaigns: React.FC = () => {
           currentPage++;
           
           if (currentPage > 50) {
-            break; // safety break
+            break;
           }
         }
       }
@@ -262,22 +284,38 @@ const Campaigns: React.FC = () => {
     }
   };
 
-  // Plan filter change handler
-  // In handlePlanFilterChange, ensure the filter value matches API casing exactly
-const handlePlanFilterChange = (planName: string) => {
-  setFilters(prev => ({ ...prev, planName }));
-  setSelectedContacts([]);
-};
+  const handlePlanFilterChange = (planName: string) => {
+    setFilters(prev => ({ ...prev, planName }));
+    setSelectedContacts([]);
+  };
 
+  // Initialize email queue when campaign starts
+  const initializeEmailQueue = (selectedEmails: string[]) => {
+    const allEmailsMap = new Map<string, EmailStatus>();
+    
+    selectedEmails.forEach(email => {
+      allEmailsMap.set(email, {
+        email,
+        status: 'queued',
+        timestamp: undefined,
+        error: undefined,
+        retryCount: 0
+      });
+    });
 
-  // Load contacts when send modal opens or plan filter changes
+    setEmailQueue({
+      currentBatch: [],
+      nextBatch: [],
+      allEmails: allEmailsMap
+    });
+  };
+
+  // Enhanced WebSocket initialization
   useEffect(() => {
     if (showSendModal) {
       fetchContacts();
-      // Initialize WebSocket connection
       initializeWebSocket();
     } else {
-      // Clean up WebSocket when modal closes
       if (wsConnection) {
         wsConnection.close();
         setWsConnection(null);
@@ -286,7 +324,6 @@ const handlePlanFilterChange = (planName: string) => {
     }
   }, [showSendModal, filters.planName]);
 
-  // Initialize WebSocket connection for real-time updates
   const initializeWebSocket = () => {
     try {
       const ws = new WebSocket('ws://localhost:3001');
@@ -306,6 +343,11 @@ const handlePlanFilterChange = (planName: string) => {
         console.log('WebSocket disconnected');
         setIsConnected(false);
         setWsConnection(null);
+        
+        // Auto-disconnect when campaign is completed
+        if (sendingStatus === 'completed') {
+          console.log('Campaign completed - WebSocket auto-disconnected');
+        }
       };
       
       ws.onerror = (error) => {
@@ -317,64 +359,179 @@ const handlePlanFilterChange = (planName: string) => {
     }
   };
 
-  // Handle WebSocket messages
-  const handleWebSocketMessage = (data: any) => {
-    if (data.jobId !== currentJobId) return;
+  // Enhanced WebSocket message handler
+  // Update your handleWebSocketMessage function to be more flexible:
+const handleWebSocketMessage = (data: any) => {
+    console.log('🔥 RAW WebSocket message received:', data);
+    console.log('🔍 Current jobId (ref):', currentJobIdRef.current);
+    console.log('🔍 Current jobId (state):', currentJobId);
+    console.log('🔍 Message jobId:', data.jobId);
     
-    switch (data.type) {
-      case 'job_started':
-        setEmailProgress({
-          total: data.job.totalEmails,
-          sent: 0,
-          success: 0,
-          failed: 0,
-          pending: data.job.totalEmails,
-          emailsPerSecond: 0,
-          startTime: new Date(data.job.startTime),
-          estimatedCompletion: null
-        });
-        setRealtimeLog([]);
-        break;
-        
-      case 'email_sent':
-      case 'email_failed':
-        setEmailProgress(prev => ({
-          ...prev,
-          sent: data.progress.sent,
-          success: data.progress.success,
-          failed: data.progress.failed,
-          pending: data.progress.pending,
-          emailsPerSecond: Math.floor(Math.random() * 5) + 3 // Simulated rate
-        }));
-        
-        // Add to real-time log
-        setRealtimeLog(prev => [{
-          email: data.email,
-          status: data.status,
-          timestamp: new Date(data.timestamp),
-          error: data.error
-        }, ...prev].slice(0, 50)); // Keep last 50 entries
-        break;
-        
-      case 'job_completed':
-        setSendingStatus('success');
-        setSendResult({
-          success: true,
-          message: `Campaign completed: ${data.results.successful} successful, ${data.results.failed} failed`,
-          stats: data.results
-        });
-        break;
-        
-      case 'job_failed':
-        setSendingStatus('error');
-        setSendResult({
-          success: false,
-          message: data.error || 'Campaign failed'
-        });
-        break;
+    // If currentJobId is null and we get a job_started message, set it
+    if (!currentJobIdRef.current && data.type === 'job_started' && data.jobId) {
+      console.log('🔧 Setting currentJobId from job_started:', data.jobId);
+      currentJobIdRef.current = data.jobId;
+      setCurrentJobId(data.jobId);
+    }
+    
+    // Use ref for immediate comparison
+    if (currentJobIdRef.current === data.jobId || (!currentJobIdRef.current && data.type === 'job_started')) {
+      console.log('✅ Processing message type:', data.type);
+      
+      switch (data.type) {
+        case 'job_started':
+          if (!currentJobIdRef.current) {
+            currentJobIdRef.current = data.jobId;
+            setCurrentJobId(data.jobId);
+          }
+          
+          setEmailProgress({
+            total: data.job.totalEmails,
+            sent: 0,
+            success: 0,
+            failed: 0,
+            pending: data.job.totalEmails,
+            emailsPerSecond: 0,
+            startTime: new Date(data.job.startTime),
+            estimatedCompletion: null,
+            currentBatch: 0,
+            totalBatches: data.job.totalBatches || 0
+          });
+          
+          // Initialize the email queue with all emails as pending
+          const selectedEmails = getSelectedContactsData().map(c => c.email);
+          const allEmailsMap = new Map<string, EmailStatus>();
+          selectedEmails.forEach(email => {
+            allEmailsMap.set(email, {
+              email,
+              status: 'pending',
+              timestamp: undefined
+            });
+          });
+          
+          setEmailQueue({
+            currentBatch: [],
+            nextBatch: [],
+            allEmails: allEmailsMap
+          });
+          setRealtimeLog([]);
+          break;
+          
+        case 'email_sending':
+          setEmailQueue(prev => {
+            const newAllEmails = new Map(prev.allEmails);
+            newAllEmails.set(data.email, {
+              email: data.email,
+              status: 'sending',
+              timestamp: new Date(data.timestamp)
+            });
+            return { ...prev, allEmails: newAllEmails };
+          });
+          
+          // Add to real-time log
+          setRealtimeLog(prev => [{
+            email: data.email,
+            status: 'sending',
+            timestamp: new Date(data.timestamp)
+          }, ...prev].slice(0, 100));
+          break;
+          
+        case 'email_sent':
+        case 'email_failed':
+          setEmailQueue(prev => {
+            const newAllEmails = new Map(prev.allEmails);
+            newAllEmails.set(data.email, {
+              email: data.email,
+              status: data.type === 'email_sent' ? 'sent' : 'failed',
+              timestamp: new Date(data.timestamp),
+              error: data.error
+            });
+            return { ...prev, allEmails: newAllEmails };
+          });
+
+          setEmailProgress(prev => ({
+            ...prev,
+            sent: data.progress.sent,
+            success: data.progress.success,
+            failed: data.progress.failed,
+            pending: data.progress.pending,
+            emailsPerSecond: data.progress.rate || 0
+          }));
+          
+          // Add to real-time log
+          setRealtimeLog(prev => [{
+            email: data.email,
+            status: data.type === 'email_sent' ? 'sent' : 'failed',
+            timestamp: new Date(data.timestamp),
+            error: data.error
+          }, ...prev].slice(0, 100));
+          break;
+          
+        case 'job_completed':
+          setSendingStatus('completed');
+          setSendResult({
+            success: true,
+            message: `Campaign completed: ${data.results.successful} successful, ${data.results.failed} failed`,
+            stats: data.results
+          });
+          
+          setTimeout(() => {
+            if (wsConnection) {
+              wsConnection.close();
+              setWsConnection(null);
+              setIsConnected(false);
+            }
+          }, 5000);
+          break;
+          
+        case 'job_failed':
+          setSendingStatus('error');
+          setSendResult({
+            success: false,
+            message: data.error || 'Campaign failed'
+          });
+          break;
+      }
+    } else {
+      console.log('❌ JobId mismatch - ignoring message');
     }
   };
-  
+  // Get email status icon
+  const getEmailStatusIcon = (status: EmailStatus['status']) => {
+    switch (status) {
+      case 'sent':
+        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+      case 'failed':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'sending':
+        return <Loader className="w-4 h-4 text-blue-500 animate-spin" />;
+      case 'pending':
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+      case 'queued':
+        return <ArrowRight className="w-4 h-4 text-gray-400" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  // Get email status color
+  const getEmailStatusColor = (status: EmailStatus['status']) => {
+    switch (status) {
+      case 'sent':
+        return 'text-green-700 bg-green-50';
+      case 'failed':
+        return 'text-red-700 bg-red-50';
+      case 'sending':
+        return 'text-blue-700 bg-blue-50';
+      case 'pending':
+        return 'text-yellow-700 bg-yellow-50';
+      case 'queued':
+        return 'text-gray-700 bg-gray-50';
+      default:
+        return 'text-gray-700 bg-gray-50';
+    }
+  };
+
   // Campaigns data (unchanged)
   const campaigns: Campaign[] = [
     {
@@ -424,7 +581,7 @@ const handlePlanFilterChange = (planName: string) => {
     }
   ];
 
-  // Status icon and color helpers (unchanged)
+  // Helper functions (unchanged)
   const getStatusIcon = (status: Campaign['status']) => {
     switch (status) {
       case 'sent':
@@ -455,29 +612,27 @@ const handlePlanFilterChange = (planName: string) => {
     }
   };
 
-  // Plan badge styling helper
   const getPlanBadgeStyle = (planName?: string) => {
-  switch (planName) {
-    case 'Free':
-      return 'bg-gray-100 text-gray-800';
-    case 'Starter':
-      return 'bg-blue-100 text-blue-800';
-    case 'Plus':
-      return 'bg-purple-100 text-purple-800';
-    case 'Pro':
-      return 'bg-yellow-100 text-yellow-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
+    switch (planName) {
+      case 'Free':
+        return 'bg-gray-100 text-gray-800';
+      case 'Starter':
+        return 'bg-blue-100 text-blue-800';
+      case 'Plus':
+        return 'bg-purple-100 text-purple-800';
+      case 'Pro':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-  // Filter campaigns by search term
+  // Filter and selection functions (unchanged)
   const filteredCampaigns = campaigns.filter(campaign =>
     campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     campaign.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Apply filters to contacts
   const applyFilters = () => {
     let filtered = [...allContacts];
     
@@ -495,19 +650,15 @@ const handlePlanFilterChange = (planName: string) => {
       filtered = filtered.filter(contact => contact.status === filters.status);
     }
     
-    // Plan filter: only filter if planName is 'all' or if we have mixed plans in allContacts
-    // In applyFilters function, compare plan names exactly (case-sensitive)
-      if (filters.planName !== 'all' && allContacts.length > 0) {
-        const hasMixedPlans = allContacts.some(contact => 
-          contact.planName && contact.planName !== filters.planName
-        );
-        if (hasMixedPlans) {
-          filtered = filtered.filter(contact => contact.planName === filters.planName);
-        }
-        // else: already fetched plan-specific data, no need to filter again
+    if (filters.planName !== 'all' && allContacts.length > 0) {
+      const hasMixedPlans = allContacts.some(contact => 
+        contact.planName && contact.planName !== filters.planName
+      );
+      if (hasMixedPlans) {
+        filtered = filtered.filter(contact => contact.planName === filters.planName);
       }
+    }
 
-    
     if (filters.lastLogin !== 'all') {
       const now = new Date();
       filtered = filtered.filter(contact => {
@@ -538,20 +689,17 @@ const handlePlanFilterChange = (planName: string) => {
     setContacts(filtered);
   };
 
-  // Filtered contacts by search term
   const filteredContacts = contacts.filter(contact =>
     contact.email.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
     contact.fullName.toLowerCase().includes(contactSearchTerm.toLowerCase())
   );
 
-  // Apply filters when filters or allContacts change
   useEffect(() => {
     if (allContacts.length > 0) {
       applyFilters();
     }
   }, [filters, allContacts]);
 
-  // Reset selected contacts when filters change
   useEffect(() => {
     setSelectedContacts([]);
   }, [filters]);
@@ -586,45 +734,72 @@ const handlePlanFilterChange = (planName: string) => {
   };
 
   const handleSendCampaign = async () => {
-    if (!selectedTemplate || selectedContacts.length === 0) return;
+    console.log('🚀 handleSendCampaign called');
+    
+    if (!selectedTemplate || selectedContacts.length === 0) {
+      console.log('❌ Missing template or contacts');
+      return;
+    }
 
-    setSendingStatus('sending');
+    // Reset job state
+    currentJobIdRef.current = null;
+    setCurrentJobId(null);
+    setEmailProgress({
+      total: 0,
+      sent: 0,
+      success: 0,
+      failed: 0,
+      pending: 0,
+      emailsPerSecond: 0,
+      startTime: null,
+      estimatedCompletion: null,
+      currentBatch: 0,
+      totalBatches: 0
+    });
+    setEmailQueue({
+      currentBatch: [],
+      nextBatch: [],
+      allEmails: new Map()
+    });
+    setRealtimeLog([]);
+
     const jobId = `campaign_${Date.now()}`;
-    setCurrentJobId(jobId);
+    console.log('🚀 Generated new jobId:', jobId);
+    
+    setSendingStatus('sending');
     
     try {
       const selectedContactsData = getSelectedContactsData();
-      
-      // Use bulk campaign for real-time monitoring
-      const result = await emailService.sendBulkCampaign({
+      const payload = {
         jobId,
         contacts: selectedContactsData,
         subject: selectedTemplate.subject,
         html: selectedTemplate.html,
         from: 'noreply@websparks.ai',
-        batchSize: 50, // Smaller batches for better real-time updates
-        delayBetweenBatches: 500 // 500ms delay between batches
-      });
+        batchSize: 50,
+        delayBetweenBatches: 500
+      };
+      
+      const result = await emailService.sendBulkCampaign(payload);
+      console.log('📧 Backend response:', result);
 
       if (!result.success) {
         setSendResult(result);
         setSendingStatus('error');
       }
-      // Success/error status will be handled by WebSocket messages
     } catch (error) {
+      console.error('❌ Campaign error:', error);
       setSendingStatus('error');
-      setSendResult({ success: false, message: 'Failed to send campaign' });
+      setSendResult({ success: false, message: 'Failed to send campaign: ' + error.message });
     }
   };
 
   const handlePauseCampaign = () => {
     setSendingStatus('paused');
-    // In a real implementation, you would send a pause signal to the server
   };
 
   const handleResumeCampaign = () => {
     setSendingStatus('sending');
-    // In a real implementation, you would send a resume signal to the server
   };
 
   const handleStopCampaign = () => {
@@ -638,10 +813,16 @@ const handlePlanFilterChange = (planName: string) => {
       pending: 0,
       emailsPerSecond: 0,
       startTime: null,
-      estimatedCompletion: null
+      estimatedCompletion: null,
+      currentBatch: 0,
+      totalBatches: 0
+    });
+    setEmailQueue({
+      currentBatch: [],
+      nextBatch: [],
+      allEmails: new Map()
     });
     setRealtimeLog([]);
-    // In a real implementation, you would send a stop signal to the server
   };
 
   const calculateProgress = () => {
@@ -655,22 +836,90 @@ const handlePlanFilterChange = (planName: string) => {
     const seconds = duration % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
-  
 
-  // Debug component (optional)
-  // const DebugInfo = () => (
-  //   <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
-  //     <div><strong>Debug Info:</strong></div>
-  //     <div>Selected Plan: {filters.planName}</div>
-  //     <div>All Contacts: {allContacts.length}</div>
-  //     <div>Filtered Contacts: {contacts.length}</div>
-  //     <div>Final Displayed: {filteredContacts.length}</div>
-  //     <div>Loading: {loadingContacts ? 'Yes' : 'No'}</div>
-  //     <div>Error: {contactsError || 'None'}</div>
-  //     <div>Sample Contact Plan Names: {allContacts.slice(0, 3).map(c => c.planName || 'null').join(', ')}</div>
-  //   </div>
-  // );
+  // Get emails by status for detailed monitoring
+  // const getEmailsByStatus = () => {
+  //   const statusCounts = {
+  //     sent: 0,
+  //     failed: 0,
+  //     sending: 0,
+  //     pending: 0,
+  //     queued: 0
+  //   };
 
+  //   const emailsByStatus = {
+  //     sent: [] as EmailStatus[],
+  //     failed: [] as EmailStatus[],
+  //     sending: [] as EmailStatus[],
+  //     pending: [] as EmailStatus[],
+  //     queued: [] as EmailStatus[]
+  //   };
+
+  //   emailQueue.allEmails.forEach(email => {
+  //     statusCounts[email.status]++;
+  //     emailsByStatus[email.status].push(email);
+  //   });
+
+  //   return { statusCounts, emailsByStatus };
+  // };
+const resetCampaignState = () => {
+  currentJobIdRef.current = null;
+  setCurrentJobId(null);
+  console.log('🔄 Resetting campaign state');
+  setShowSendModal(false);
+  setSendingStatus('idle');
+  setSelectedTemplate(null);
+  setSendResult(null);
+  setSelectedContacts([]);
+  setContactSearchTerm('');
+  setCurrentJobId(null); // This is crucial!
+  setEmailProgress({
+    total: 0,
+    sent: 0,
+    success: 0,
+    failed: 0,
+    pending: 0,
+    emailsPerSecond: 0,
+    startTime: null,
+    estimatedCompletion: null,
+    currentBatch: 0,
+    totalBatches: 0
+  });
+  setEmailQueue({
+    currentBatch: [],
+    nextBatch: [],
+    allEmails: new Map()
+  });
+  setRealtimeLog([]);
+  if (wsConnection) {
+    wsConnection.close();
+    setWsConnection(null);
+    setIsConnected(false);
+  }
+};
+const getEmailsByStatus = () => {
+    const emailsByStatus = {
+      pending: [] as EmailStatus[],
+      sending: [] as EmailStatus[],
+      sent: [] as EmailStatus[],
+      failed: [] as EmailStatus[]
+    };
+
+    emailQueue.allEmails.forEach(email => {
+      if (email.status === 'pending' || email.status === 'queued') {
+        emailsByStatus.pending.push(email);
+      } else if (email.status === 'sending') {
+        emailsByStatus.sending.push(email);
+      } else if (email.status === 'sent') {
+        emailsByStatus.sent.push(email);
+      } else if (email.status === 'failed') {
+        emailsByStatus.failed.push(email);
+      }
+    });
+
+    return emailsByStatus;
+  };
+  const emailsByStatus = getEmailsByStatus();
   return (
     <div className="flex-1 overflow-auto">
       <div className="p-8">
@@ -897,7 +1146,6 @@ const handlePlanFilterChange = (planName: string) => {
                         </span>
                       </label>
                     ))}
-
                   </div>
                 </div>
 
@@ -1116,69 +1364,95 @@ const handlePlanFilterChange = (planName: string) => {
                         style={{ width: `${calculateProgress()}%` }}
                       ></div>
                     </div>
+                    {emailProgress.totalBatches > 0 && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Batch {emailProgress.currentBatch} of {emailProgress.totalBatches}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Real-time Activity Log */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h5 className="font-medium text-gray-900 mb-2 flex items-center">
-                        <Activity className="w-4 h-4 mr-2" />
-                        Recent Activity
-                      </h5>
-                      <div className="bg-white rounded-lg border max-h-32 overflow-y-auto">
-                        {realtimeLog.length === 0 ? (
-                          <p className="text-gray-500 text-center py-4 text-sm">No activity yet...</p>
-                        ) : (
-                          <div className="p-2 space-y-1">
-                            {realtimeLog.slice(0, 10).map((log, index) => (
-                              <div key={index} className="flex items-center justify-between text-xs">
-                                <div className="flex items-center">
-                                  {log.status === 'sent' ? (
-                                    <CheckCircle className="w-3 h-3 text-green-500 mr-2" />
-                                  ) : (
-                                    <XCircle className="w-3 h-3 text-red-500 mr-2" />
-                                  )}
-                                  <span className="font-mono truncate max-w-32">{log.email}</span>
-                                </div>
-                                <span className="text-gray-500">
-                                  {log.timestamp.toLocaleTimeString()}
-                                </span>
+                  {/* Simple Email Progress List */}
+                  <div className="mt-4">
+                    <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Email Progress ({emailQueue.allEmails.size} total)
+                    </h5>
+                    <div className="bg-white rounded-lg border max-h-64 overflow-y-auto">
+                      {emailQueue.allEmails.size === 0 ? (
+                        <p className="text-gray-500 text-center py-8">No emails in queue...</p>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {Array.from(emailQueue.allEmails.values())
+                            .sort((a, b) => {
+                              // Sort by status: sending first, then sent, then failed, then pending
+                              const statusOrder = { sending: 0, sent: 1, failed: 2, pending: 3, queued: 4 };
+                              return statusOrder[a.status] - statusOrder[b.status];
+                            })
+                            .map((email, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50">
+                              <div className="flex items-center">
+                                <span className="font-mono text-sm text-gray-700">{email.email}</span>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-2">
+                                  {getEmailStatusIcon(email.status)}
+                                  <span className={`px-2 py-1 text-xs rounded-full font-medium ${getEmailStatusColor(email.status)}`}>
+                                    {email.status === 'sent' ? 'Success' : 
+                                     email.status === 'failed' ? 'Failed' : 
+                                     email.status === 'sending' ? 'Sending...' : 'Pending'}
+                                  </span>
+                                </div>
+                                {email.timestamp && (
+                                  <span className="text-xs text-gray-400 min-w-16">
+                                    {email.timestamp.toLocaleTimeString()}
+                                  </span>
+                                )}
+                                {!email.timestamp && email.status === 'pending' && (
+                                  <span className="text-xs text-gray-400 min-w-16">Waiting...</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                  </div>
 
-                    <div>
-                      <h5 className="font-medium text-gray-900 mb-2 flex items-center">
-                        <BarChart3 className="w-4 h-4 mr-2" />
-                        Performance
-                      </h5>
-                      <div className="bg-white rounded-lg border p-3 space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Success Rate:</span>
-                          <span className="font-semibold">
-                            {emailProgress.sent > 0 ? ((emailProgress.success / emailProgress.sent) * 100).toFixed(1) : 0}%
-                          </span>
+                  {/* Performance Summary */}
+                  <div className="mt-4 bg-white rounded-lg border p-4">
+                    <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Performance Summary
+                    </h5>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-green-600">
+                          {emailProgress.sent > 0 ? ((emailProgress.success / emailProgress.sent) * 100).toFixed(1) : 0}%
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Remaining:</span>
-                          <span className="font-semibold">
-                            {emailProgress.pending > 0 && emailProgress.emailsPerSecond > 0 ? 
-                              `~${Math.ceil(emailProgress.pending / emailProgress.emailsPerSecond)}s` : 
-                              '-'
-                            }
-                          </span>
+                        <div className="text-gray-600">Success Rate</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-blue-600">
+                          {emailProgress.emailsPerSecond}
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Status:</span>
-                          <span className={`font-semibold ${
-                            sendingStatus === 'sending' ? 'text-green-600' : 'text-yellow-600'
-                          }`}>
-                            {sendingStatus === 'sending' ? 'Running' : 'Paused'}
-                          </span>
+                        <div className="text-gray-600">Emails/Sec</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-gray-600">
+                          {emailProgress.pending > 0 && emailProgress.emailsPerSecond > 0 ? 
+                            `~${Math.ceil(emailProgress.pending / emailProgress.emailsPerSecond)}s` : 
+                            '-'
+                          }
                         </div>
+                        <div className="text-gray-600">ETA</div>
+                      </div>
+                      <div className="text-center">
+                        <div className={`text-lg font-bold ${
+                          sendingStatus === 'sending' ? 'text-green-600' : 'text-yellow-600'
+                        }`}>
+                          {sendingStatus === 'sending' ? 'Active' : 'Paused'}
+                        </div>
+                        <div className="text-gray-600">Status</div>
                       </div>
                     </div>
                   </div>
@@ -1397,19 +1671,24 @@ const handlePlanFilterChange = (planName: string) => {
                 </div>
               )}
 
-              {sendingStatus === 'success' && sendResult && (
+              {(sendingStatus === 'success' || sendingStatus === 'completed') && sendResult && (
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Campaign Sent Successfully!</h4>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Campaign Completed Successfully!</h4>
                   <p className="text-gray-600 mb-4">{sendResult.message}</p>
                   {sendResult.stats && (
                     <div className="bg-green-50 p-4 rounded-lg">
                       <p className="text-sm text-green-800">
-                        ✅ {sendResult.stats.successCount} emails sent successfully<br/>
-                        {sendResult.stats.failureCount > 0 && `❌ ${sendResult.stats.failureCount} emails failed`}
+                        ✅ {sendResult.stats.successCount || sendResult.stats.successful} emails sent successfully<br/>
+                        {(sendResult.stats.failureCount || sendResult.stats.failed) > 0 && 
+                          `❌ ${sendResult.stats.failureCount || sendResult.stats.failed} emails failed`
+                        }
                       </p>
                     </div>
                   )}
+                  <div className="mt-4 text-sm text-gray-500">
+                    WebSocket will automatically disconnect in a few seconds...
+                  </div>
                 </div>
               )}
 
@@ -1424,6 +1703,7 @@ const handlePlanFilterChange = (planName: string) => {
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   onClick={() => {
+                    currentJobIdRef.current = null;
                     setShowSendModal(false);
                     setSendingStatus('idle');
                     setSelectedTemplate(null);
@@ -1439,7 +1719,14 @@ const handlePlanFilterChange = (planName: string) => {
                       pending: 0,
                       emailsPerSecond: 0,
                       startTime: null,
-                      estimatedCompletion: null
+                      estimatedCompletion: null,
+                      currentBatch: 0,
+                      totalBatches: 0
+                    });
+                    setEmailQueue({
+                      currentBatch: [],
+                      nextBatch: [],
+                      allEmails: new Map()
                     });
                     setRealtimeLog([]);
                     if (wsConnection) {
@@ -1471,3 +1758,6 @@ const handlePlanFilterChange = (planName: string) => {
 };
 
 export default Campaigns;
+// };
+
+// export default Campaigns;
