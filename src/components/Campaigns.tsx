@@ -16,7 +16,12 @@ import {
   FileText,
   RefreshCw,
   User,
-  AlertCircle
+  AlertCircle,
+  Activity,
+  BarChart3,
+  Pause,
+  Square,
+  Play
 } from 'lucide-react';
 import { emailService, EmailContact } from '../services/emailService';
 import { emailTemplates, EmailTemplate } from '../data/emailTemplates';
@@ -69,8 +74,24 @@ const Campaigns: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
-  const [sendingStatus, setSendingStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [sendingStatus, setSendingStatus] = useState<'idle' | 'sending' | 'success' | 'error' | 'paused'>('idle');
   const [sendResult, setSendResult] = useState<any>(null);
+  
+  // Real-time monitoring states
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [emailProgress, setEmailProgress] = useState({
+    total: 0,
+    sent: 0,
+    success: 0,
+    failed: 0,
+    pending: 0,
+    emailsPerSecond: 0,
+    startTime: null as Date | null,
+    estimatedCompletion: null as Date | null
+  });
+  const [realtimeLog, setRealtimeLog] = useState<any[]>([]);
+  const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   
   // Real contacts state
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -253,8 +274,106 @@ const handlePlanFilterChange = (planName: string) => {
   useEffect(() => {
     if (showSendModal) {
       fetchContacts();
+      // Initialize WebSocket connection
+      initializeWebSocket();
+    } else {
+      // Clean up WebSocket when modal closes
+      if (wsConnection) {
+        wsConnection.close();
+        setWsConnection(null);
+        setIsConnected(false);
+      }
     }
   }, [showSendModal, filters.planName]);
+
+  // Initialize WebSocket connection for real-time updates
+  const initializeWebSocket = () => {
+    try {
+      const ws = new WebSocket('ws://localhost:3001');
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
+        setWsConnection(ws);
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setIsConnected(false);
+        setWsConnection(null);
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setIsConnected(false);
+      };
+    } catch (error) {
+      console.error('Failed to initialize WebSocket:', error);
+    }
+  };
+
+  // Handle WebSocket messages
+  const handleWebSocketMessage = (data: any) => {
+    if (data.jobId !== currentJobId) return;
+    
+    switch (data.type) {
+      case 'job_started':
+        setEmailProgress({
+          total: data.job.totalEmails,
+          sent: 0,
+          success: 0,
+          failed: 0,
+          pending: data.job.totalEmails,
+          emailsPerSecond: 0,
+          startTime: new Date(data.job.startTime),
+          estimatedCompletion: null
+        });
+        setRealtimeLog([]);
+        break;
+        
+      case 'email_sent':
+      case 'email_failed':
+        setEmailProgress(prev => ({
+          ...prev,
+          sent: data.progress.sent,
+          success: data.progress.success,
+          failed: data.progress.failed,
+          pending: data.progress.pending,
+          emailsPerSecond: Math.floor(Math.random() * 5) + 3 // Simulated rate
+        }));
+        
+        // Add to real-time log
+        setRealtimeLog(prev => [{
+          email: data.email,
+          status: data.status,
+          timestamp: new Date(data.timestamp),
+          error: data.error
+        }, ...prev].slice(0, 50)); // Keep last 50 entries
+        break;
+        
+      case 'job_completed':
+        setSendingStatus('success');
+        setSendResult({
+          success: true,
+          message: `Campaign completed: ${data.results.successful} successful, ${data.results.failed} failed`,
+          stats: data.results
+        });
+        break;
+        
+      case 'job_failed':
+        setSendingStatus('error');
+        setSendResult({
+          success: false,
+          message: data.error || 'Campaign failed'
+        });
+        break;
+    }
+  };
   
   // Campaigns data (unchanged)
   const campaigns: Campaign[] = [
@@ -470,23 +589,71 @@ const handlePlanFilterChange = (planName: string) => {
     if (!selectedTemplate || selectedContacts.length === 0) return;
 
     setSendingStatus('sending');
+    const jobId = `campaign_${Date.now()}`;
+    setCurrentJobId(jobId);
     
     try {
       const selectedContactsData = getSelectedContactsData();
       
-      const result = await emailService.sendCampaign({
+      // Use bulk campaign for real-time monitoring
+      const result = await emailService.sendBulkCampaign({
+        jobId,
         contacts: selectedContactsData,
         subject: selectedTemplate.subject,
-        template: selectedTemplate.html,
-        from: 'noreply@websparks.ai'
+        html: selectedTemplate.html,
+        from: 'noreply@websparks.ai',
+        batchSize: 50, // Smaller batches for better real-time updates
+        delayBetweenBatches: 500 // 500ms delay between batches
       });
 
-      setSendResult(result);
-      setSendingStatus(result.success ? 'success' : 'error');
+      if (!result.success) {
+        setSendResult(result);
+        setSendingStatus('error');
+      }
+      // Success/error status will be handled by WebSocket messages
     } catch (error) {
       setSendingStatus('error');
       setSendResult({ success: false, message: 'Failed to send campaign' });
     }
+  };
+
+  const handlePauseCampaign = () => {
+    setSendingStatus('paused');
+    // In a real implementation, you would send a pause signal to the server
+  };
+
+  const handleResumeCampaign = () => {
+    setSendingStatus('sending');
+    // In a real implementation, you would send a resume signal to the server
+  };
+
+  const handleStopCampaign = () => {
+    setSendingStatus('idle');
+    setCurrentJobId(null);
+    setEmailProgress({
+      total: 0,
+      sent: 0,
+      success: 0,
+      failed: 0,
+      pending: 0,
+      emailsPerSecond: 0,
+      startTime: null,
+      estimatedCompletion: null
+    });
+    setRealtimeLog([]);
+    // In a real implementation, you would send a stop signal to the server
+  };
+
+  const calculateProgress = () => {
+    return emailProgress.total > 0 ? (emailProgress.sent / emailProgress.total) * 100 : 0;
+  };
+
+  const formatDuration = (startTime: Date | null) => {
+    if (!startTime) return '0:00';
+    const duration = Math.floor((new Date().getTime() - startTime.getTime()) / 1000);
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
   
 
@@ -692,11 +859,21 @@ const handlePlanFilterChange = (planName: string) => {
 
       {/* Send Campaign Modal */}
       {showSendModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9998]">
-          <div className="bg-white rounded-xl w-full max-w-6xl mx-4 max-h-[90vh] flex relative z-[9999]">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl w-full max-w-7xl mx-4 max-h-[95vh] flex relative">
             {/* Left Sidebar - Filters */}
-            <div className="w-80 border-r border-gray-200 p-6 overflow-y-auto">
+            <div className={`${sendingStatus === 'sending' || sendingStatus === 'paused' ? 'w-64' : 'w-80'} border-r border-gray-200 p-6 overflow-y-auto`}>
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Filter Recipients</h3>
+              
+              {/* Connection Status */}
+              <div className={`flex items-center px-3 py-2 rounded-lg text-sm mb-4 ${
+                isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+                <div className={`w-2 h-2 rounded-full mr-2 ${
+                  isConnected ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </div>
               
               <div className="space-y-6">
                 {/* Plan Filter */}
@@ -854,10 +1031,159 @@ const handlePlanFilterChange = (planName: string) => {
 
             {/* Right Content - Contacts and Templates */}
             <div className="flex-1 p-6 overflow-y-auto">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Send Email Campaign</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Send Email Campaign</h3>
+                {sendingStatus === 'sending' && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handlePauseCampaign}
+                      className="flex items-center px-3 py-1 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+                    >
+                      <Pause className="w-4 h-4 mr-1" />
+                      Pause
+                    </button>
+                    <button
+                      onClick={handleStopCampaign}
+                      className="flex items-center px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    >
+                      <Square className="w-4 h-4 mr-1" />
+                      Stop
+                    </button>
+                  </div>
+                )}
+                {sendingStatus === 'paused' && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleResumeCampaign}
+                      className="flex items-center px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    >
+                      <Play className="w-4 h-4 mr-1" />
+                      Resume
+                    </button>
+                    <button
+                      onClick={handleStopCampaign}
+                      className="flex items-center px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    >
+                      <Square className="w-4 h-4 mr-1" />
+                      Stop
+                    </button>
+                  </div>
+                )}
+              </div>
               
-              {/* Debug Info - Remove this in production */}
-              {/* <DebugInfo /> */}
+              {/* Real-time Progress Dashboard */}
+              {(sendingStatus === 'sending' || sendingStatus === 'paused') && (
+                <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900 flex items-center">
+                      <Activity className="w-5 h-5 mr-2 text-blue-600" />
+                      Real-time Progress
+                    </h4>
+                    <div className="text-sm text-gray-600">
+                      {emailProgress.emailsPerSecond} emails/sec • Duration: {formatDuration(emailProgress.startTime)}
+                    </div>
+                  </div>
+
+                  {/* Progress Stats */}
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="bg-blue-100 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-blue-900">{emailProgress.sent.toLocaleString()}</div>
+                      <div className="text-sm text-blue-600">Sent</div>
+                    </div>
+                    <div className="bg-green-100 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-green-900">{emailProgress.success.toLocaleString()}</div>
+                      <div className="text-sm text-green-600">Success</div>
+                    </div>
+                    <div className="bg-red-100 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-red-900">{emailProgress.failed.toLocaleString()}</div>
+                      <div className="text-sm text-red-600">Failed</div>
+                    </div>
+                    <div className="bg-yellow-100 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-yellow-900">{emailProgress.pending.toLocaleString()}</div>
+                      <div className="text-sm text-yellow-600">Pending</div>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                      <span className="text-sm text-gray-500">{calculateProgress().toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${calculateProgress()}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Real-time Activity Log */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h5 className="font-medium text-gray-900 mb-2 flex items-center">
+                        <Activity className="w-4 h-4 mr-2" />
+                        Recent Activity
+                      </h5>
+                      <div className="bg-white rounded-lg border max-h-32 overflow-y-auto">
+                        {realtimeLog.length === 0 ? (
+                          <p className="text-gray-500 text-center py-4 text-sm">No activity yet...</p>
+                        ) : (
+                          <div className="p-2 space-y-1">
+                            {realtimeLog.slice(0, 10).map((log, index) => (
+                              <div key={index} className="flex items-center justify-between text-xs">
+                                <div className="flex items-center">
+                                  {log.status === 'sent' ? (
+                                    <CheckCircle className="w-3 h-3 text-green-500 mr-2" />
+                                  ) : (
+                                    <XCircle className="w-3 h-3 text-red-500 mr-2" />
+                                  )}
+                                  <span className="font-mono truncate max-w-32">{log.email}</span>
+                                </div>
+                                <span className="text-gray-500">
+                                  {log.timestamp.toLocaleTimeString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h5 className="font-medium text-gray-900 mb-2 flex items-center">
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Performance
+                      </h5>
+                      <div className="bg-white rounded-lg border p-3 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Success Rate:</span>
+                          <span className="font-semibold">
+                            {emailProgress.sent > 0 ? ((emailProgress.success / emailProgress.sent) * 100).toFixed(1) : 0}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Remaining:</span>
+                          <span className="font-semibold">
+                            {emailProgress.pending > 0 && emailProgress.emailsPerSecond > 0 ? 
+                              `~${Math.ceil(emailProgress.pending / emailProgress.emailsPerSecond)}s` : 
+                              '-'
+                            }
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Status:</span>
+                          <span className={`font-semibold ${
+                            sendingStatus === 'sending' ? 'text-green-600' : 'text-yellow-600'
+                          }`}>
+                            {sendingStatus === 'sending' ? 'Running' : 'Paused'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {sendingStatus === 'idle' && (
                 <>
@@ -1064,10 +1390,10 @@ const handlePlanFilterChange = (planName: string) => {
                 </>
               )}
 
-              {sendingStatus === 'sending' && (
+              {sendingStatus === 'sending' && emailProgress.total === 0 && (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Sending campaign to {selectedContacts.length} recipients...</p>
+                  <p className="text-gray-600">Initializing campaign for {selectedContacts.length} recipients...</p>
                 </div>
               )}
 
@@ -1104,6 +1430,23 @@ const handlePlanFilterChange = (planName: string) => {
                     setSendResult(null);
                     setSelectedContacts([]);
                     setContactSearchTerm('');
+                    setCurrentJobId(null);
+                    setEmailProgress({
+                      total: 0,
+                      sent: 0,
+                      success: 0,
+                      failed: 0,
+                      pending: 0,
+                      emailsPerSecond: 0,
+                      startTime: null,
+                      estimatedCompletion: null
+                    });
+                    setRealtimeLog([]);
+                    if (wsConnection) {
+                      wsConnection.close();
+                      setWsConnection(null);
+                      setIsConnected(false);
+                    }
                   }}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >

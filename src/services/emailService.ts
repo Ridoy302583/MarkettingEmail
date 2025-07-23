@@ -29,6 +29,7 @@ export interface BulkCampaignRequest {
   batchSize?: number;
   delayBetweenBatches?: number;
 }
+
 export const emailService = {
   async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
