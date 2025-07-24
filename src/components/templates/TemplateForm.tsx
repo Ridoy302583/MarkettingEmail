@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { EmailTemplate } from '../../types/EmailTemplate';
 
 interface TemplateFormProps {
-  template?: EmailTemplate;
+  template?: EmailTemplate | null;
   onSave: (template: Omit<EmailTemplate, 'id'>) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -25,9 +25,11 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
   const [previewHtml, setPreviewHtml] = useState('');
 
   useEffect(() => {
-    console.log('TemplateForm mounted with template:', template);
+    console.log('🔄 TemplateForm useEffect triggered with template:', template);
+    
     if (template) {
-      setFormData({
+      console.log('✏️ Editing existing template:', template.name);
+      const templateData = {
         name: template.name || '',
         subject: template.subject || '',
         category: template.category || 'promotional',
@@ -36,11 +38,14 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
         createdDate: template.createdDate || new Date().toISOString().split('T')[0],
         lastModified: new Date().toISOString().split('T')[0],
         usageCount: template.usageCount || 0
-      });
+      };
+      
+      console.log('📝 Setting form data:', templateData);
+      setFormData(templateData);
       setPreviewHtml(template.html || '');
     } else {
-      // Reset form for new template
-      setFormData({
+      console.log('🆕 Creating new template - resetting form');
+      const newTemplateData = {
         name: '',
         subject: '',
         category: 'promotional',
@@ -49,19 +54,39 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
         createdDate: new Date().toISOString().split('T')[0],
         lastModified: new Date().toISOString().split('T')[0],
         usageCount: 0
-      });
+      };
+      
+      setFormData(newTemplateData);
       setPreviewHtml('');
     }
   }, [template]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submitting form data:', formData);
+    console.log('💾 Submitting form with data:', formData);
+    
+    if (!formData.name.trim()) {
+      alert('Please enter a template name');
+      return;
+    }
+    
+    if (!formData.subject.trim()) {
+      alert('Please enter a subject line');
+      return;
+    }
+    
+    if (!formData.html.trim()) {
+      alert('Please enter HTML content');
+      return;
+    }
+    
     onSave(formData);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    console.log(`📝 Form field changed: ${name} = ${value.substring(0, 50)}${value.length > 50 ? '...' : ''}`);
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -92,7 +117,17 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
       .replace(/{{companyName}}/g, 'WebSparks AI');
   };
 
-  console.log('TemplateForm rendering with showPreview:', showPreview);
+  const handleCancel = () => {
+    console.log('❌ Form cancelled');
+    onCancel();
+  };
+
+  console.log('🎨 TemplateForm rendering with:', {
+    isEditing: !!template,
+    templateName: template?.name,
+    formDataName: formData.name,
+    showPreview
+  });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -102,7 +137,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {template ? 'Edit Template' : 'Create New Template'}
+                {template ? `Edit Template: ${template.name}` : 'Create New Template'}
               </h2>
               <p className="text-gray-600 mt-1">Design your email template with live preview</p>
             </div>
@@ -121,7 +156,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
               </button>
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={handleCancel}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <div className="i-hugeicons:cancel-01 w-5 h-5" />
@@ -234,8 +269,9 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
               </button>
               <button
                 type="button"
-                onClick={onCancel}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                onClick={handleCancel}
+                disabled={isLoading}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
               >
                 Cancel
               </button>

@@ -15,8 +15,8 @@ const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | undefined>();
-  const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | undefined>();
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; templateId: string; templateName: string }>({
     isOpen: false,
     templateId: '',
@@ -35,6 +35,7 @@ const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
     try {
       setLoading(true);
       const fetchedTemplates = await emailTemplateService.getTemplates();
+      console.log('📧 Loaded templates:', fetchedTemplates);
       setTemplates(fetchedTemplates);
     } catch (error) {
       console.error('Error loading templates:', error);
@@ -44,19 +45,20 @@ const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
   };
 
   const handleCreateTemplate = () => {
-    console.log('Creating new template');
-    setEditingTemplate(undefined);
+    console.log('🆕 Creating new template');
+    setEditingTemplate(null);
     setShowForm(true);
   };
 
   const handleEditTemplate = (template: EmailTemplate) => {
-    console.log('Editing template:', template);
+    console.log('✏️ Editing template:', template);
     setEditingTemplate(template);
     setShowForm(true);
   };
 
   const handleDuplicateTemplate = async (template: EmailTemplate) => {
     try {
+      console.log('📋 Duplicating template:', template.name);
       const duplicatedTemplate = {
         ...template,
         name: `${template.name} (Copy)`,
@@ -68,12 +70,14 @@ const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
       
       await emailTemplateService.createTemplate(duplicatedTemplate);
       await loadTemplates();
+      console.log('✅ Template duplicated successfully');
     } catch (error) {
-      console.error('Error duplicating template:', error);
+      console.error('❌ Error duplicating template:', error);
     }
   };
 
   const handleShareTemplate = (template: EmailTemplate) => {
+    console.log('🔗 Sharing template:', template.name);
     const shareData = {
       title: template.name,
       text: template.subject,
@@ -84,6 +88,7 @@ const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
       navigator.share(shareData);
     } else {
       navigator.clipboard.writeText(window.location.href);
+      alert('Template link copied to clipboard!');
     }
   };
 
@@ -91,25 +96,29 @@ const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
     try {
       setFormLoading(true);
       
-      if (editingTemplate) {
-        console.log('Updating template:', editingTemplate.id, templateData);
-        await emailTemplateService.updateTemplate(editingTemplate.id!, templateData);
+      if (editingTemplate && editingTemplate.id) {
+        console.log('💾 Updating template:', editingTemplate.id, templateData);
+        await emailTemplateService.updateTemplate(editingTemplate.id, templateData);
+        console.log('✅ Template updated successfully');
       } else {
-        console.log('Creating new template:', templateData);
+        console.log('💾 Creating new template:', templateData);
         await emailTemplateService.createTemplate(templateData);
+        console.log('✅ Template created successfully');
       }
       
       setShowForm(false);
-      setEditingTemplate(undefined);
+      setEditingTemplate(null);
       await loadTemplates();
     } catch (error) {
-      console.error('Error saving template:', error);
+      console.error('❌ Error saving template:', error);
+      alert('Failed to save template. Please try again.');
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleDeleteTemplate = (id: string, name: string) => {
+    console.log('🗑️ Preparing to delete template:', id, name);
     setDeleteConfirm({
       isOpen: true,
       templateId: id,
@@ -120,28 +129,33 @@ const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
   const confirmDelete = async () => {
     try {
       setDeleteLoading(true);
+      console.log('🗑️ Deleting template:', deleteConfirm.templateId);
       await emailTemplateService.deleteTemplate(deleteConfirm.templateId);
       setDeleteConfirm({ isOpen: false, templateId: '', templateName: '' });
       await loadTemplates();
+      console.log('✅ Template deleted successfully');
     } catch (error) {
-      console.error('Error deleting template:', error);
+      console.error('❌ Error deleting template:', error);
+      alert('Failed to delete template. Please try again.');
     } finally {
       setDeleteLoading(false);
     }
   };
 
   const handlePreviewTemplate = (template: EmailTemplate) => {
+    console.log('👁️ Previewing template:', template.name);
     setPreviewTemplate(template);
   };
 
   const handleCloseForm = () => {
-    console.log('Closing form');
+    console.log('❌ Closing form');
     setShowForm(false);
-    setEditingTemplate(undefined);
+    setEditingTemplate(null);
   };
 
   const handleClosePreview = () => {
-    setPreviewTemplate(undefined);
+    console.log('❌ Closing preview');
+    setPreviewTemplate(null);
   };
 
   const filteredTemplates = templates.filter(template => {

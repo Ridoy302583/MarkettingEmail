@@ -53,13 +53,14 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
   const handleEdit = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Edit button clicked for template:', template.id);
+    console.log('✏️ Edit button clicked for template:', template.id, template.name);
     onEdit(template);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('🗑️ Delete button clicked for template:', template.id);
     if (template.id) {
       onDelete(template.id);
     }
@@ -68,24 +69,28 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
   const handlePreview = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('👁️ Preview button clicked for template:', template.id);
     onPreview(template);
   };
 
   const handleDuplicate = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('📋 Duplicate button clicked for template:', template.id);
     onDuplicate(template);
   };
 
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('🔗 Share button clicked for template:', template.id);
     onShare(template);
   };
 
   const handleUse = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('🚀 Use button clicked for template:', template.id);
     if (onUse) {
       onUse(template);
     }
@@ -146,7 +151,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             </button>
             <button
               onClick={handleEdit}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
               title="Edit"
             >
               <div className="i-hugeicons:pencil-edit-02 w-4 h-4" />
