@@ -93,7 +93,7 @@ const TemplatePreview: React.FC<TemplatePreviewProps> = ({ template, onClose }) 
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-gray-900">WebSparks AI</div>
-                    <div className="text-xs text-gray-500 truncate">noreply@websparks.ai</div>
+                    <div className="text-xs text-gray-500 truncate">allmamun@websparks.ai</div>
                   </div>
                   <div className="text-xs text-gray-400">2 min ago</div>
                 </div>

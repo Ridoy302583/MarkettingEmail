@@ -13,9 +13,9 @@ const wss = new WebSocketServer({ server });
 app.use(cors());
 app.use(express.json());
 
-// Default sender configuration
-const DEFAULT_FROM_NAME = "Allmamun at WebSparks";
-const DEFAULT_FROM_EMAIL = "noreply@websparks.ai";
+// Default sender configuration - UPDATED FOR WEBSPARKS
+const DEFAULT_FROM_NAME = "Allmamun from Websparks";
+const DEFAULT_FROM_EMAIL = "allmamun@websparks.ai";
 const DEFAULT_FROM = `"${DEFAULT_FROM_NAME}" <${DEFAULT_FROM_EMAIL}>`;
 
 // SES Rate Limiting Configuration
@@ -43,9 +43,14 @@ const transporter = nodemailer.createTransport(AWS_SES_CONFIG);
 const activeConnections = new Set();
 const emailJobs = new Map();
 
-// Function to format display name with email
-function formatFromAddress(name, email = DEFAULT_FROM_EMAIL) {
+// Function to format display name with email - UPDATED
+function formatFromAddress(name = DEFAULT_FROM_NAME, email = DEFAULT_FROM_EMAIL) {
   return `"${name}" <${email}>`;
+}
+
+// Specific function for WebSparks emails
+function formatWebSparksFromAddress() {
+  return `"Allmamun from Websparks" <allmamun@websparks.ai>`;
 }
 
 // Sleep function for delays
@@ -56,9 +61,10 @@ async function retryEmailSend(mailOptions, retries = MAX_RETRIES) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const result = await transporter.sendMail(mailOptions);
+      console.log(`✅ Email sent successfully to ${mailOptions.to} (attempt ${attempt})`);
       return { success: true, result };
     } catch (error) {
-      console.log(`Email send attempt ${attempt} failed:`, error.message);
+      console.log(`❌ Email send attempt ${attempt} failed for ${mailOptions.to}:`, error.message);
       
       // Check if it's a rate limiting error
       if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET' || 
@@ -67,14 +73,15 @@ async function retryEmailSend(mailOptions, retries = MAX_RETRIES) {
         if (attempt < retries) {
           // Exponential backoff: 1s, 2s, 4s
           const delay = Math.pow(2, attempt - 1) * 1000;
-          console.log(`Rate limit hit, waiting ${delay}ms before retry...`);
+          console.log(`⏳ Rate limit hit, waiting ${delay}ms before retry...`);
           await sleep(delay);
           continue;
         }
       }
       
-      // If it's the last attempt or not a rate limit error, throw the error
+      // If it's the last attempt or not a rate limit error, return error
       if (attempt === retries) {
+        console.log(`🚫 All retry attempts failed for ${mailOptions.to}`);
         return { success: false, error: error.message };
       }
     }
@@ -82,16 +89,16 @@ async function retryEmailSend(mailOptions, retries = MAX_RETRIES) {
 }
 
 wss.on('connection', (ws) => {
-  console.log('Client connected to WebSocket');
+  console.log('🔌 Client connected to WebSocket');
   activeConnections.add(ws);
   
   ws.on('close', () => {
-    console.log('Client disconnected from WebSocket');
+    console.log('🔌 Client disconnected from WebSocket');
     activeConnections.delete(ws);
   });
   
   ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
+    console.error('❌ WebSocket error:', error);
     activeConnections.delete(ws);
   });
 });
@@ -101,7 +108,12 @@ function broadcast(data) {
   const message = JSON.stringify(data);
   activeConnections.forEach(ws => {
     if (ws.readyState === ws.OPEN) {
-      ws.send(message);
+      try {
+        ws.send(message);
+      } catch (error) {
+        console.error('❌ Error broadcasting to client:', error);
+        activeConnections.delete(ws);
+      }
     }
   });
 }
@@ -114,20 +126,16 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
       contacts, 
       subject, 
       html, 
-      from = DEFAULT_FROM,
-      fromName,
+      from,
+      fromName = "Allmamun from Websparks",
       fromEmail = DEFAULT_FROM_EMAIL,
-      batchSize = DEFAULT_BATCH_SIZE, // Use SES-optimized batch size
+      batchSize = DEFAULT_BATCH_SIZE,
       delayBetweenBatches = DELAY_BETWEEN_BATCHES 
     } = req.body;
     
     // Format the from address
-    let formattedFrom;
-    if (fromName) {
-      formattedFrom = formatFromAddress(fromName, fromEmail);
-    } else {
-      formattedFrom = from;
-    }
+    const formattedFrom = formatFromAddress(fromName, fromEmail);
+    console.log(`📧 Using sender format: ${formattedFrom}`);
     
     if (!jobId || !contacts || !Array.isArray(contacts) || contacts.length === 0) {
       return res.status(400).json({
@@ -140,7 +148,7 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
     const safeBatchSize = Math.min(batchSize, DEFAULT_BATCH_SIZE);
     const totalBatches = Math.ceil(contacts.length / safeBatchSize);
 
-    console.log(`Starting bulk campaign: ${contacts.length} emails, ${totalBatches} batches of ${safeBatchSize}`);
+    console.log(`🚀 Starting bulk campaign: ${contacts.length} emails, ${totalBatches} batches of ${safeBatchSize}`);
 
     // Initialize job tracking
     const job = {
@@ -155,7 +163,8 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
       totalBatches,
       currentBatch: 0,
       errors: [],
-      retries: 0
+      retries: 0,
+      fromAddress: formattedFrom
     };
     
     emailJobs.set(jobId, job);
@@ -167,13 +176,16 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
       job: {
         totalEmails: contacts.length,
         startTime: job.startTime.toISOString(),
-        totalBatches
+        totalBatches,
+        fromAddress: formattedFrom
       }
     });
 
     // Process emails in batches with SES rate limiting
     const processBatch = async (batch, batchIndex) => {
       job.currentBatch = batchIndex + 1;
+      
+      console.log(`📦 Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} emails)`);
       
       broadcast({
         type: 'batch_started',
@@ -214,7 +226,12 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
             timestamp: new Date().toISOString()
           });
 
-          const personalizedHtml = html.replace(/{{firstName}}/g, contact.firstName || 'Valued Customer');
+          // Replace template variables
+          let personalizedHtml = html
+            .replace(/\{\{firstName\}\}/g, contact.firstName || 'Valued Customer')
+            .replace(/\{\{lastName\}\}/g, contact.lastName || '')
+            .replace(/\{\{email\}\}/g, contact.email)
+            .replace(/\{\{companyName\}\}/g, 'WebSparks AI');
           
           const mailOptions = {
             from: formattedFrom,
@@ -306,14 +323,12 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
       const batch = contacts.slice(i, i + safeBatchSize);
       const batchIndex = Math.floor(i / safeBatchSize);
       
-      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} emails)`);
-      
       const batchResults = await processBatch(batch, batchIndex);
       results.push(...batchResults);
       
       // Add delay between batches (except for the last batch)
       if (i + safeBatchSize < contacts.length) {
-        console.log(`Waiting ${delayBetweenBatches}ms before next batch...`);
+        console.log(`⏳ Waiting ${delayBetweenBatches}ms before next batch...`);
         await sleep(delayBetweenBatches);
       }
     }
@@ -324,7 +339,7 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
     emailJobs.set(jobId, job);
     
     const duration = Math.floor((job.endTime - job.startTime) / 1000);
-    console.log(`Bulk campaign completed in ${duration} seconds: ${job.success} successful, ${job.failed} failed`);
+    console.log(`✅ Bulk campaign completed in ${duration} seconds: ${job.success} successful, ${job.failed} failed`);
     
     broadcast({
       type: 'job_completed',
@@ -333,7 +348,8 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
         total: contacts.length,
         successful: job.success,
         failed: job.failed,
-        duration: duration
+        duration: duration,
+        fromAddress: formattedFrom
       }
     });
 
@@ -346,12 +362,13 @@ app.post('/api/send-bulk-campaign', async (req, res) => {
         successful: job.success,
         failed: job.failed,
         duration: duration,
+        fromAddress: formattedFrom,
         details: results
       }
     });
     
   } catch (error) {
-    console.error('Bulk campaign error:', error);
+    console.error('❌ Bulk campaign error:', error);
     
     // Update job status to failed
     if (req.body.jobId && emailJobs.has(req.body.jobId)) {
@@ -405,14 +422,20 @@ app.get('/api/jobs', (req, res) => {
 app.get('/api/test-connection', async (req, res) => {
   try {
     await transporter.verify();
+    console.log('✅ AWS SES connection test successful');
     res.json({ 
       success: true, 
       message: 'AWS SES connection successful',
+      sender: DEFAULT_FROM,
       rateLimit: `${SES_RATE_LIMIT} emails/second`,
       batchSize: DEFAULT_BATCH_SIZE
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ AWS SES connection test failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 });
 
@@ -423,18 +446,14 @@ app.post('/api/send-email', async (req, res) => {
       to, 
       subject, 
       html, 
-      from = DEFAULT_FROM,
-      fromName,
+      from,
+      fromName = "Allmamun from Websparks",
       fromEmail = DEFAULT_FROM_EMAIL
     } = req.body;
 
     // Format the from address
-    let formattedFrom;
-    if (fromName) {
-      formattedFrom = formatFromAddress(fromName, fromEmail);
-    } else {
-      formattedFrom = from;
-    }
+    const formattedFrom = formatFromAddress(fromName, fromEmail);
+    console.log(`📧 Sending single email from: ${formattedFrom} to: ${to}`);
 
     const mailOptions = {
       from: formattedFrom,
@@ -449,14 +468,15 @@ app.post('/api/send-email', async (req, res) => {
       res.json({ 
         success: true, 
         message: 'Email sent successfully',
-        messageId: emailResult.result.messageId 
+        messageId: emailResult.result.messageId,
+        fromAddress: formattedFrom
       });
     } else {
       throw new Error(emailResult.error);
     }
     
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error('❌ Email sending error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message 
@@ -471,18 +491,14 @@ app.post('/api/send-campaign', async (req, res) => {
       contacts, 
       subject, 
       template, 
-      from = DEFAULT_FROM,
-      fromName,
+      from,
+      fromName = "Allmamun from Websparks",
       fromEmail = DEFAULT_FROM_EMAIL
     } = req.body;
     
     // Format the from address
-    let formattedFrom;
-    if (fromName) {
-      formattedFrom = formatFromAddress(fromName, fromEmail);
-    } else {
-      formattedFrom = from;
-    }
+    const formattedFrom = formatFromAddress(fromName, fromEmail);
+    console.log(`📧 Sending campaign from: ${formattedFrom} to ${contacts.length} recipients`);
     
     const results = [];
     
@@ -491,7 +507,12 @@ app.post('/api/send-campaign', async (req, res) => {
       const contact = contacts[i];
       
       try {
-        const personalizedTemplate = template.replace(/{{firstName}}/g, contact.firstName || 'Valued Customer');
+        // Replace template variables
+        let personalizedTemplate = template
+          .replace(/\{\{firstName\}\}/g, contact.firstName || 'Valued Customer')
+          .replace(/\{\{lastName\}\}/g, contact.lastName || '')
+          .replace(/\{\{email\}\}/g, contact.email)
+          .replace(/\{\{companyName\}\}/g, 'WebSparks AI');
         
         const mailOptions = {
           from: formattedFrom,
@@ -533,14 +554,17 @@ app.post('/api/send-campaign', async (req, res) => {
     const successCount = results.filter(r => r.success).length;
     const failureCount = results.filter(r => !r.success).length;
 
+    console.log(`✅ Campaign completed: ${successCount} successful, ${failureCount} failed`);
+
     res.json({
       success: true,
       message: `Campaign sent: ${successCount} successful, ${failureCount} failed`,
+      fromAddress: formattedFrom,
       results,
       stats: { successCount, failureCount, totalSent: contacts.length }
     });
   } catch (error) {
-    console.error('Campaign sending error:', error);
+    console.error('❌ Campaign sending error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -548,12 +572,111 @@ app.post('/api/send-campaign', async (req, res) => {
   }
 });
 
+// Pause job endpoint
+app.post('/api/pause-job/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = emailJobs.get(jobId);
+  
+  if (!job) {
+    return res.status(404).json({
+      success: false,
+      message: 'Job not found'
+    });
+  }
+  
+  job.status = 'paused';
+  emailJobs.set(jobId, job);
+  
+  broadcast({
+    type: 'job_paused',
+    jobId
+  });
+  
+  res.json({
+    success: true,
+    message: 'Job paused successfully'
+  });
+});
+
+// Resume job endpoint
+app.post('/api/resume-job/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = emailJobs.get(jobId);
+  
+  if (!job) {
+    return res.status(404).json({
+      success: false,
+      message: 'Job not found'
+    });
+  }
+  
+  job.status = 'running';
+  emailJobs.set(jobId, job);
+  
+  broadcast({
+    type: 'job_resumed',
+    jobId
+  });
+  
+  res.json({
+    success: true,
+    message: 'Job resumed successfully'
+  });
+});
+
+// Stop job endpoint
+app.post('/api/stop-job/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = emailJobs.get(jobId);
+  
+  if (!job) {
+    return res.status(404).json({
+      success: false,
+      message: 'Job not found'
+    });
+  }
+  
+  job.status = 'stopped';
+  job.endTime = new Date();
+  emailJobs.set(jobId, job);
+  
+  broadcast({
+    type: 'job_stopped',
+    jobId
+  });
+  
+  res.json({
+    success: true,
+    message: 'Job stopped successfully'
+  });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Email server is running',
+    timestamp: new Date().toISOString(),
+    activeJobs: emailJobs.size,
+    activeConnections: activeConnections.size,
+    config: {
+      sender: DEFAULT_FROM,
+      rateLimit: `${SES_RATE_LIMIT} emails/second`,
+      batchSize: DEFAULT_BATCH_SIZE,
+      emailDelay: `${DELAY_BETWEEN_EMAILS}ms`,
+      batchDelay: `${DELAY_BETWEEN_BATCHES}ms`
+    }
+  });
+});
+
 server.listen(PORT, () => {
-  console.log(`Email server running on port ${PORT}`);
-  console.log(`WebSocket server running on port ${PORT}`);
-  console.log(`Default sender: ${DEFAULT_FROM}`);
-  console.log(`SES Rate Limit: ${SES_RATE_LIMIT} emails/second`);
-  console.log(`Batch Size: ${DEFAULT_BATCH_SIZE} emails`);
-  console.log(`Email Delay: ${DELAY_BETWEEN_EMAILS}ms`);
-  console.log(`Batch Delay: ${DELAY_BETWEEN_BATCHES}ms`);
+  console.log(`🚀 Email server running on port ${PORT}`);
+  console.log(`🔌 WebSocket server running on port ${PORT}`);
+  console.log(`📧 Default sender: ${DEFAULT_FROM}`);
+  console.log(`⚡ SES Rate Limit: ${SES_RATE_LIMIT} emails/second`);
+  console.log(`📦 Batch Size: ${DEFAULT_BATCH_SIZE} emails`);
+  console.log(`⏱️  Email Delay: ${DELAY_BETWEEN_EMAILS}ms`);
+  console.log(`⏱️  Batch Delay: ${DELAY_BETWEEN_BATCHES}ms`);
+  console.log(`🔄 Max Retries: ${MAX_RETRIES}`);
+  console.log('✅ Server ready to send emails!');
 });
