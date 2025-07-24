@@ -15,8 +15,8 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
     category: 'promotional',
     thumbnail: '',
     html: '',
-    createdDate: '',
-    lastModified: '',
+    createdDate: new Date().toISOString().split('T')[0],
+    lastModified: new Date().toISOString().split('T')[0],
     usageCount: 0
   });
 
@@ -25,14 +25,38 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
   const [previewHtml, setPreviewHtml] = useState('');
 
   useEffect(() => {
+    console.log('TemplateForm mounted with template:', template);
     if (template) {
-      setFormData(template);
-      setPreviewHtml(template.html);
+      setFormData({
+        name: template.name || '',
+        subject: template.subject || '',
+        category: template.category || 'promotional',
+        thumbnail: template.thumbnail || '',
+        html: template.html || '',
+        createdDate: template.createdDate || new Date().toISOString().split('T')[0],
+        lastModified: new Date().toISOString().split('T')[0],
+        usageCount: template.usageCount || 0
+      });
+      setPreviewHtml(template.html || '');
+    } else {
+      // Reset form for new template
+      setFormData({
+        name: '',
+        subject: '',
+        category: 'promotional',
+        thumbnail: '',
+        html: '',
+        createdDate: new Date().toISOString().split('T')[0],
+        lastModified: new Date().toISOString().split('T')[0],
+        usageCount: 0
+      });
+      setPreviewHtml('');
     }
   }, [template]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting form data:', formData);
     onSave(formData);
   };
 
@@ -68,6 +92,8 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
       .replace(/{{companyName}}/g, 'WebSparks AI');
   };
 
+  console.log('TemplateForm rendering with showPreview:', showPreview);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex">
@@ -92,6 +118,13 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
               >
                 <div className="i-hugeicons:view w-4 h-4 mr-2" />
                 {showPreview ? 'Hide Preview' : 'Show Preview'}
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <div className="i-hugeicons:cancel-01 w-5 h-5" />
               </button>
             </div>
           </div>

@@ -7,7 +7,11 @@ import TemplateForm from './templates/TemplateForm';
 import TemplatePreview from './templates/TemplatePreview';
 import ConfirmDialog from './templates/ConfirmDialog';
 
-const Templates: React.FC = () => {
+interface TemplatesProps {
+  onUseTemplate?: (template: EmailTemplate) => void;
+}
+
+const Templates: React.FC<TemplatesProps> = ({ onUseTemplate }) => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -40,11 +44,13 @@ const Templates: React.FC = () => {
   };
 
   const handleCreateTemplate = () => {
+    console.log('Creating new template');
     setEditingTemplate(undefined);
     setShowForm(true);
   };
 
   const handleEditTemplate = (template: EmailTemplate) => {
+    console.log('Editing template:', template);
     setEditingTemplate(template);
     setShowForm(true);
   };
@@ -86,8 +92,10 @@ const Templates: React.FC = () => {
       setFormLoading(true);
       
       if (editingTemplate) {
+        console.log('Updating template:', editingTemplate.id, templateData);
         await emailTemplateService.updateTemplate(editingTemplate.id!, templateData);
       } else {
+        console.log('Creating new template:', templateData);
         await emailTemplateService.createTemplate(templateData);
       }
       
@@ -126,6 +134,16 @@ const Templates: React.FC = () => {
     setPreviewTemplate(template);
   };
 
+  const handleCloseForm = () => {
+    console.log('Closing form');
+    setShowForm(false);
+    setEditingTemplate(undefined);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewTemplate(undefined);
+  };
+
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.subject.toLowerCase().includes(searchTerm.toLowerCase());
@@ -150,60 +168,60 @@ const Templates: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <i className="bi bi-arrow-clockwise animate-spin text-4xl text-blue-500 mb-4"></i>
-          <p className="text-gray-600">Loading templates...</p>
+      <div className="flex-1 overflow-auto">
+        <div className="p-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="flex items-center space-x-2">
+              <div className="i-hugeicons:loading-03 w-6 h-6 animate-spin text-blue-600" />
+              <span className="text-gray-600">Loading templates...</span>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="flex-1 overflow-auto">
       {/* Header */}
-      <div className="">
-        <div className="mx-auto px-6 py-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Email Templates</h1>
-              <p className="text-gray-600">Design and manage your email templates</p>
-            </div>
-            <button
-              onClick={handleCreateTemplate}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
-            >
-              <div className='i-hugeicons:plus-sign' />
-              Create Template
-            </button>
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Email Templates</h1>
+            <p className="text-gray-600">Design and manage your email templates</p>
           </div>
+          <button
+            onClick={handleCreateTemplate}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+          >
+            <div className="i-hugeicons:add-01 w-4 h-4" />
+            Create Template
+          </button>
+        </div>
 
-          <div className="flex items-center justify-between gap-6 ">
-            <CategoryTabs
-              categories={getCategoryCounts()}
-              activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
+        <div className="flex items-center justify-between gap-6 mb-8">
+          <CategoryTabs
+            categories={getCategoryCounts()}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+          />
+          
+          <div className="relative">
+            <div className="i-hugeicons:search-01 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"></div>
+            <input
+              type="text"
+              placeholder="Search templates..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            
-            <div className="relative">
-              <div className="i-hugeicons:search-01 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></div>
-              <input
-                type="text"
-                placeholder="Search templates..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
           </div>
         </div>
-      </div>
 
-      {/* Templates Grid */}
-      <div className="mx-auto px-6 pb-12">
+        {/* Templates Grid */}
         {filteredTemplates.length === 0 ? (
           <div className="text-center py-12">
-            <i className="bi bi-envelope text-6xl text-gray-300 mb-4"></i>
+            <div className="i-hugeicons:mail-01 w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No templates found</h3>
             <p className="text-gray-600 mb-6">
               {templates.length === 0 
@@ -227,10 +245,11 @@ const Templates: React.FC = () => {
                 key={template.id}
                 template={template}
                 onEdit={handleEditTemplate}
-                onDelete={handleDeleteTemplate}
+                onDelete={(id) => handleDeleteTemplate(id, template.name)}
                 onPreview={handlePreviewTemplate}
                 onDuplicate={handleDuplicateTemplate}
                 onShare={handleShareTemplate}
+                onUse={onUseTemplate}
               />
             ))}
           </div>
@@ -242,10 +261,7 @@ const Templates: React.FC = () => {
         <TemplateForm
           template={editingTemplate}
           onSave={handleSaveTemplate}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingTemplate(undefined);
-          }}
+          onCancel={handleCloseForm}
           isLoading={formLoading}
         />
       )}
@@ -253,7 +269,7 @@ const Templates: React.FC = () => {
       {previewTemplate && (
         <TemplatePreview
           template={previewTemplate}
-          onClose={() => setPreviewTemplate(undefined)}
+          onClose={handleClosePreview}
         />
       )}
 
