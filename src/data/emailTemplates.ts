@@ -27,6 +27,10 @@ export const emailTemplates: EmailTemplate[] = [
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .logo-section { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        .logo { max-width: 200px; height: auto; }
+        .logo-text { font-size: 28px; font-weight: bold; color: #2d3748; margin: 0; }
+        .logo-tagline { font-size: 14px; color: #718096; margin: 5px 0 0 0; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; }
         .header h1 { color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; }
         .content { padding: 40px 20px; }
@@ -38,6 +42,13 @@ export const emailTemplates: EmailTemplate[] = [
 </head>
 <body>
     <div class="container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=80&fit=crop&crop=center" alt="WebSparks AI Logo" class="logo" crossorigin="anonymous" />
+            <h1 class="logo-text">WebSparks AI</h1>
+            <p class="logo-tagline">Powering Your Business with AI</p>
+        </div>
+        
         <div class="header">
             <h1>🏖️ SUMMER SALE</h1>
         </div>
@@ -86,6 +97,10 @@ export const emailTemplates: EmailTemplate[] = [
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f7fafc; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .logo-section { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        .logo { max-width: 200px; height: auto; }
+        .logo-text { font-size: 28px; font-weight: bold; color: #2d3748; margin: 0; }
+        .logo-tagline { font-size: 14px; color: #718096; margin: 5px 0 0 0; }
         .header { background-color: #4299e1; padding: 40px 20px; text-align: center; }
         .header h1 { color: #ffffff; margin: 0; font-size: 28px; }
         .content { padding: 40px 20px; }
@@ -97,6 +112,13 @@ export const emailTemplates: EmailTemplate[] = [
 </head>
 <body>
     <div class="container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=80&fit=crop&crop=center" alt="WebSparks AI Logo" class="logo" crossorigin="anonymous" />
+            <h1 class="logo-text">WebSparks AI</h1>
+            <p class="logo-tagline">Powering Your Business with AI</p>
+        </div>
+        
         <div class="header">
             <h1>Welcome to WebSparks AI! 👋</h1>
         </div>
@@ -152,6 +174,10 @@ export const emailTemplates: EmailTemplate[] = [
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f7fafc; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .logo-section { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        .logo { max-width: 200px; height: auto; }
+        .logo-text { font-size: 28px; font-weight: bold; color: #2d3748; margin: 0; }
+        .logo-tagline { font-size: 14px; color: #718096; margin: 5px 0 0 0; }
         .header { background-color: #805ad5; padding: 30px 20px; text-align: center; }
         .header h1 { color: #ffffff; margin: 0; font-size: 26px; }
         .content { padding: 30px 20px; }
@@ -164,6 +190,13 @@ export const emailTemplates: EmailTemplate[] = [
 </head>
 <body>
     <div class="container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=80&fit=crop&crop=center" alt="WebSparks AI Logo" class="logo" crossorigin="anonymous" />
+            <h1 class="logo-text">WebSparks AI</h1>
+            <p class="logo-tagline">Powering Your Business with AI</p>
+        </div>
+        
         <div class="header">
             <h1>📰 Monthly Newsletter</h1>
             <p style="color: #e2e8f0; margin: 10px 0 0 0;">January 2024 Edition</p>
@@ -232,6 +265,10 @@ export const emailTemplates: EmailTemplate[] = [
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f7fafc; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .logo-section { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        .logo { max-width: 200px; height: auto; }
+        .logo-text { font-size: 28px; font-weight: bold; color: #2d3748; margin: 0; }
+        .logo-tagline { font-size: 14px; color: #718096; margin: 5px 0 0 0; }
         .header { background-color: #48bb78; padding: 30px 20px; text-align: center; }
         .header h1 { color: #ffffff; margin: 0; font-size: 24px; }
         .content { padding: 30px 20px; }
@@ -244,6 +281,13 @@ export const emailTemplates: EmailTemplate[] = [
 </head>
 <body>
     <div class="container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=80&fit=crop&crop=center" alt="WebSparks AI Logo" class="logo" crossorigin="anonymous" />
+            <h1 class="logo-text">WebSparks AI</h1>
+            <p class="logo-tagline">Powering Your Business with AI</p>
+        </div>
+        
         <div class="header">
             <h1>✅ Order Confirmed!</h1>
         </div>
@@ -313,6 +357,10 @@ export const emailTemplates: EmailTemplate[] = [
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #1a202c; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .logo-section { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        .logo { max-width: 200px; height: auto; }
+        .logo-text { font-size: 28px; font-weight: bold; color: #2d3748; margin: 0; }
+        .logo-tagline { font-size: 14px; color: #718096; margin: 5px 0 0 0; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; }
         .header h1 { color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; }
         .content { padding: 40px 20px; }
@@ -326,6 +374,13 @@ export const emailTemplates: EmailTemplate[] = [
 </head>
 <body>
     <div class="container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=80&fit=crop&crop=center" alt="WebSparks AI Logo" class="logo" crossorigin="anonymous" />
+            <h1 class="logo-text">WebSparks AI</h1>
+            <p class="logo-tagline">Powering Your Business with AI</p>
+        </div>
+        
         <div class="header">
             <h1>🚀 PRODUCT LAUNCH</h1>
         </div>
