@@ -6,11 +6,10 @@ import Contacts from './components/Contacts';
 import Templates from './components/Templates';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
-import EmailMonitor from './components/EmailMonitor';
 import { EmailTemplate } from './data/emailTemplates';
 import Auth from './components/Auth';
 
-type ActiveSection = 'dashboard' | 'campaigns' | 'contacts' | 'templates' | 'analytics' | 'settings' | 'monitor';
+type ActiveSection = 'dashboard' | 'campaigns' | 'contacts' | 'templates' | 'analytics' | 'settings';
 
 function App() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
@@ -195,8 +194,6 @@ function App() {
         return <Templates onUseTemplate={handleUseTemplate} />;
       case 'analytics':
         return <Analytics />;
-      case 'monitor':
-        return <EmailMonitor />;
       case 'settings':
         return <Settings onLogout={handleLogout} />;
       default:

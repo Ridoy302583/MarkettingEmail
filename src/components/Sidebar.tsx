@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-type ActiveSection = 'dashboard' | 'campaigns' | 'contacts' | 'templates' | 'analytics' | 'settings' | 'monitor';
+type ActiveSection = 'dashboard' | 'campaigns' | 'contacts' | 'templates' | 'analytics' | 'settings';
 
 interface SidebarProps {
   activeSection: ActiveSection;
@@ -18,7 +18,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, setActiveSection, onLo
     { id: 'contacts', label: 'Contacts', icon: 'i-hugeicons:user-group' },
     { id: 'templates', label: 'Templates', icon: 'i-hugeicons:file-02' },
     { id: 'analytics', label: 'Analytics', icon: 'i-hugeicons:analytics-02' },
-    { id: 'monitor', label: 'Email Monitor', icon: 'i-hugeicons:activity-02' },
     { id: 'settings', label: 'Settings', icon: 'i-hugeicons:settings-02' },
   ];
 
