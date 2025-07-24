@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 const Auth = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {

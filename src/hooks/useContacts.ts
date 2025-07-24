@@ -6,6 +6,19 @@ import { ApiContact, Contact } from '../types/campaign.types';
 
 const API_BASE_URL = 'https://api.websparks.ai';
 
+// Global cache for contacts
+let contactsCache: {
+  allContacts: Contact[];
+  lastFetched: number;
+  isLoading: boolean;
+} = {
+  allContacts: [],
+  lastFetched: 0,
+  isLoading: false
+};
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
 export const useContacts = () => {
   const {
     contacts,
@@ -75,8 +88,31 @@ export const useContacts = () => {
     };
   };
 
-  const fetchContacts = async () => {
+  const isCacheValid = () => {
+    const now = Date.now();
+    return contactsCache.allContacts.length > 0 && 
+           (now - contactsCache.lastFetched) < CACHE_DURATION;
+  };
+
+  const fetchContacts = async (forceRefresh = false) => {
     try {
+      // Check if we can use cached data
+      if (!forceRefresh && isCacheValid() && !contactsCache.isLoading) {
+        console.log('📋 Using cached contacts:', contactsCache.allContacts.length);
+        setAllContacts(contactsCache.allContacts);
+        setContacts(contactsCache.allContacts);
+        setLoadingContacts(false);
+        setContactsError(null);
+        return;
+      }
+
+      // Prevent multiple simultaneous requests
+      if (contactsCache.isLoading) {
+        console.log('📋 Contacts already loading, waiting...');
+        return;
+      }
+
+      contactsCache.isLoading = true;
       setLoadingContacts(true);
       setContactsError(null);
       
@@ -88,6 +124,7 @@ export const useContacts = () => {
       let allContactsData: Contact[] = [];
       
       if (filters.planName !== 'all') {
+        console.log('📋 Fetching contacts by plan:', filters.planName);
         const url = `${API_BASE_URL}/get-user-by-plan-name/?page=1&per_page=3000&name=${filters.planName}&sort_by=id&sort_order=asc`;
         const response = await fetch(url, {
           headers: {
@@ -108,6 +145,7 @@ export const useContacts = () => {
         );
         allContactsData = uniqueContacts;
       } else {
+        console.log('📋 Fetching all contacts...');
         let currentPage = 1;
         let hasMore = true;
         
@@ -150,14 +188,34 @@ export const useContacts = () => {
         }
       }
       
+      // Update cache
+      contactsCache = {
+        allContacts: allContactsData,
+        lastFetched: Date.now(),
+        isLoading: false
+      };
+      
+      console.log('📋 Contacts fetched and cached:', allContactsData.length);
+      
       setAllContacts(allContactsData);
       setContacts(allContactsData);
       
     } catch (err) {
+      contactsCache.isLoading = false;
       setContactsError(err instanceof Error ? err.message : 'Failed to fetch contacts');
+      console.error('📋 Error fetching contacts:', err);
     } finally {
       setLoadingContacts(false);
     }
+  };
+
+  const clearContactsCache = () => {
+    contactsCache = {
+      allContacts: [],
+      lastFetched: 0,
+      isLoading: false
+    };
+    console.log('📋 Contacts cache cleared');
   };
 
   const applyFilters = () => {
@@ -262,6 +320,15 @@ export const useContacts = () => {
     setSelectedContacts([]);
   }, [filters]);
 
+  // Load contacts from cache or fetch on mount
+  useEffect(() => {
+    if (isCacheValid()) {
+      console.log('📋 Loading contacts from cache on mount');
+      setAllContacts(contactsCache.allContacts);
+      setContacts(contactsCache.allContacts);
+    }
+  }, []);
+
   return {
     contacts,
     allContacts,
@@ -270,8 +337,10 @@ export const useContacts = () => {
     loadingContacts,
     contactsError,
     fetchContacts,
+    clearContactsCache,
     handleSelectContact,
     handleSelectAllContacts,
-    getSelectedContactsData
+    getSelectedContactsData,
+    isCacheValid: () => isCacheValid()
   };
 };

@@ -3,6 +3,7 @@
 import { useCampaignStore } from '../stores/campaignStore';
 import { useContacts } from './useContacts';
 import { emailService } from '../services/emailService';
+import { emailTrackingService } from '../services/emailTrackingService';
 
 export const useCampaignActions = () => {
   const {
@@ -55,6 +56,38 @@ export const useCampaignActions = () => {
     setSendingStatus('sending');
     
     try {
+      // Create campaign record in Firebase
+      const campaignId = await emailTrackingService.createCampaign({
+        jobId,
+        campaignName: selectedTemplate.name || 'Untitled Campaign',
+        subject: selectedTemplate.subject,
+        templateId: selectedTemplate.id?.toString(),
+        totalRecipients: selectedContactsData.length,
+        sentCount: 0,
+        successCount: 0,
+        failedCount: 0,
+        openedCount: 0,
+        clickedCount: 0,
+        status: 'sending',
+        startTime: new Date()
+      });
+
+      console.log('📊 Campaign created in Firebase:', campaignId);
+
+      // Add recipients to Firebase
+      const recipients = selectedContactsData.map(contact => ({
+        campaignId,
+        jobId,
+        email: contact.email,
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        status: 'pending' as const,
+        bounced: false
+      }));
+
+      await emailTrackingService.addRecipients(recipients);
+      console.log('📊 Recipients added to Firebase:', recipients.length);
+
       const payload = {
         jobId,
         contacts: selectedContactsData,
@@ -69,6 +102,12 @@ export const useCampaignActions = () => {
       console.log('📧 Backend response:', result);
 
       if (!result.success) {
+        // Update campaign status to failed in Firebase
+        await emailTrackingService.updateCampaign(campaignId, {
+          status: 'failed',
+          endTime: new Date()
+        });
+
         setSendResult(result);
         setSendingStatus('error');
       }

@@ -48,4 +48,3 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCategory,
 };
 
 export default CategoryTabs;
-

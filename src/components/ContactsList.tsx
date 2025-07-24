@@ -1,6 +1,6 @@
 // components/ContactsList.tsx
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useCampaignStore } from '../stores/campaignStore';
 import { getPlanBadgeStyle } from '../utils/campaignHelpers';
 import { useContacts } from '../hooks/useContacts';
@@ -19,11 +19,27 @@ export const ContactsList: React.FC = () => {
     selectedContacts,
     fetchContacts,
     handleSelectContact,
-    handleSelectAllContacts
+    handleSelectAllContacts,
+    clearContactsCache,
+    isCacheValid
   } = useContacts();
 
   const getAccessToken = () => {
     return localStorage.getItem('access_token');
+  };
+
+  // Load contacts on mount if not cached
+  useEffect(() => {
+    if (allContacts.length === 0 && !loadingContacts) {
+      console.log('📋 Loading contacts on ContactsList mount');
+      fetchContacts();
+    }
+  }, []);
+
+  const handleRefreshContacts = () => {
+    console.log('📋 Force refreshing contacts');
+    clearContactsCache();
+    fetchContacts(true);
   };
 
   return (
@@ -32,21 +48,44 @@ export const ContactsList: React.FC = () => {
         <h4 className="font-medium text-gray-900 flex items-center">
           <div className="i-hugeicons:user-group w-4 h-4 mr-2" />
           Select Recipients ({allContacts.length} total, {filteredContacts.length} filtered)
+          {isCacheValid() && (
+            <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+              Cached
+            </span>
+          )}
         </h4>
-        <button
-          onClick={fetchContacts}
-          disabled={loadingContacts}
-          className="flex items-center px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <div className={`i-hugeicons:loading-03 w-4 h-4 mr-1 ${loadingContacts ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleRefreshContacts}
+            disabled={loadingContacts}
+            className="flex items-center px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            title="Force refresh contacts"
+          >
+            <div className={`i-hugeicons:loading-03 w-4 h-4 mr-1 ${loadingContacts ? 'animate-spin' : ''}`} />
+            {loadingContacts ? 'Loading...' : 'Refresh'}
+          </button>
+          <button
+            onClick={clearContactsCache}
+            className="flex items-center px-3 py-1 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+            title="Clear contacts cache"
+          >
+            <div className="i-hugeicons:delete-02 w-4 h-4 mr-1" />
+            Clear Cache
+          </button>
+        </div>
       </div>
 
-      {loadingContacts && (
+      {loadingContacts && allContacts.length === 0 && (
         <div className="flex items-center justify-center py-8">
           <div className="i-hugeicons:loading-03 w-6 h-6 animate-spin text-blue-600 mr-2" />
-          <span className="text-gray-600">Loading contacts...</span>
+          <span className="text-gray-600">Loading contacts for the first time...</span>
+        </div>
+      )}
+
+      {loadingContacts && allContacts.length > 0 && (
+        <div className="flex items-center justify-center py-4 bg-blue-50 rounded-lg mb-4">
+          <div className="i-hugeicons:loading-03 w-4 h-4 animate-spin text-blue-600 mr-2" />
+          <span className="text-blue-700 text-sm">Refreshing contacts...</span>
         </div>
       )}
 
@@ -58,7 +97,7 @@ export const ContactsList: React.FC = () => {
             <button
               onClick={() => {
                 console.log('Manual retry - Current token:', getAccessToken()?.substring(0, 20) + '...');
-                fetchContacts();
+                fetchContacts(true);
               }}
               className="mt-2 px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
             >
@@ -110,6 +149,7 @@ export const ContactsList: React.FC = () => {
                     <p className="text-sm text-blue-800">
                       <strong>Debug Help:</strong> Check the browser console (F12) for detailed error logs.
                       <br />API Token exists: <strong>{getAccessToken() ? 'Yes' : 'No'}</strong>
+                      <br />Cache valid: <strong>{isCacheValid() ? 'Yes' : 'No'}</strong>
                     </p>
                   </div>
                 )}
