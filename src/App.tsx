@@ -23,7 +23,7 @@ function App() {
   // Validate token with API
   const validateToken = async (token: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/validate-token`, {
+      const response = await fetch(`${API_BASE_URL}/signout`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
