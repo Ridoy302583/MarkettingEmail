@@ -110,11 +110,22 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
     }
 
     // Replace template variables with sample data for preview
-    return previewHtml
-      .replace(/{{firstName}}/g, 'John')
-      .replace(/{{lastName}}/g, 'Doe')
-      .replace(/{{email}}/g, 'john.doe@example.com')
-      .replace(/{{companyName}}/g, 'WebSparks AI');
+    try {
+      return previewHtml
+        .replace(/\{\{firstName\}\}/g, 'John')
+        .replace(/\{\{lastName\}\}/g, 'Doe')
+        .replace(/\{\{email\}\}/g, 'john.doe@example.com')
+        .replace(/\{\{companyName\}\}/g, 'WebSparks AI');
+    } catch (error) {
+      console.error('Error processing preview HTML:', error);
+      return `
+        <div style="padding: 40px; text-align: center; font-family: Arial, sans-serif; color: #666;">
+          <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+          <h2 style="color: #333; margin-bottom: 10px;">Preview Error</h2>
+          <p>There was an error processing the template preview</p>
+        </div>
+      `;
+    }
   };
 
   const handleCancel = () => {
@@ -244,7 +255,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
                   placeholder="Enter HTML content for the email template..."
                 />
                 <div className="absolute top-2 right-2 text-xs text-gray-400 bg-white px-2 py-1 rounded">
-                  Use {{firstName}}, {{lastName}}, {{email}} for personalization
+                  Use {`{{firstName}}`}, {`{{lastName}}`}, {`{{email}}`} for personalization
                 </div>
               </div>
             </div>
@@ -392,19 +403,19 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel,
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Available Variables:</h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="flex items-center">
-                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{{firstName}}</code>
+                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{`{{firstName}}`}</code>
                     <span className="ml-2 text-gray-600">→ John</span>
                   </div>
                   <div className="flex items-center">
-                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{{lastName}}</code>
+                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{`{{lastName}}`}</code>
                     <span className="ml-2 text-gray-600">→ Doe</span>
                   </div>
                   <div className="flex items-center">
-                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{{email}}</code>
+                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{`{{email}}`}</code>
                     <span className="ml-2 text-gray-600">→ john.doe@example.com</span>
                   </div>
                   <div className="flex items-center">
-                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{{companyName}}</code>
+                    <code className="bg-gray-100 px-2 py-1 rounded text-blue-600">{`{{companyName}}`}</code>
                     <span className="ml-2 text-gray-600">→ WebSparks AI</span>
                   </div>
                 </div>
